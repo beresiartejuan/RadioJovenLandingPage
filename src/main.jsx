@@ -1,10 +1,10 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { Route, Switch } from 'wouter'
-import Index from './pages/Index'
-import Horoscopo from './pages/Horoscopo'
-import Eventos from './pages/Eventos'
-import 'normalize.css'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Route, Switch } from 'wouter';
+import Index from './pages/Index';
+import Horoscopo from './pages/Horoscopo';
+import Eventos from './pages/Eventos';
+import 'normalize.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

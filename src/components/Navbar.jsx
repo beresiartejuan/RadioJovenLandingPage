@@ -13,9 +13,9 @@ export default function Navbar() {
                 <MenuIcon onClick={() => setOpen(!isOpen)} />
             </div>
             <div className={`${isOpen ? style.show : ''}`}>
-                <a className="item" href="">Inicio</a>
-                <a className="item" href="">Horoscopo</a>
-                <a className="item" href="">Eventos</a>
+                <a className="item" href="/">Inicio</a>
+                <a className="item" href="/horoscopo">Horoscopo</a>
+                <a className="item" href="/eventos">Eventos</a>
             </div>
         </nav>
     )
