@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 export function useHoroscope() {
+
     const [horoscope, setHoroscope] = useState({
         title: '',
         content: '',
@@ -63,6 +64,9 @@ export function useHoroscope() {
             const response = await fetch('http://localhost:8000/api/horoscope/edit', {
                 method: 'POST',
                 body: formData,
+                headers: {
+                    'Authorization': `Bearer ${window.localStorage.getItem('_auth')}`
+                }
             });
 
             console.log(await response.json());
