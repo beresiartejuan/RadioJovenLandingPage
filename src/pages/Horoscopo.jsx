@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import Navbar from "../components/Navbar";
+import { useHoroscope } from "../hooks/useHoroscope";
 
 const Page = styled.section`
 
@@ -52,6 +53,10 @@ const Page = styled.section`
 `;
 
 export default function Horoscopo() {
+    const { horoscope } = useHoroscope();
+
+    console.log(horoscope);
+
     return (
         <>
             <Navbar></Navbar>
@@ -59,11 +64,11 @@ export default function Horoscopo() {
                 <h1>Horoscopo bizarro</h1>
                 <div role="card">
                     <div>
-                        <img src="/Horoscopo.jpg" alt="Foto para el horoscopo de una cabra" />
+                        <img src={`http://localhost:8000/storage/${horoscope.image}`} alt="Foto para el horoscopo de una cabra" />
                     </div>
                     <div>
-                        <h3>Cáncer y capricornio</h3>
-                        <span>La sinceridad de Sagitario es rechazada entre los nacidos bajo el signo de Cáncer. Sus personalidades chocan y no son compatibles. Quiero que tenga eso cuenta para crear una imagen.</span>
+                        <h3>{horoscope.title}</h3>
+                        <span>{horoscope.content}</span>
                     </div>
                 </div>
             </Page>
