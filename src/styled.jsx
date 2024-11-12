@@ -69,11 +69,13 @@ export const Section = styled.section`
 `;
 
 export const Title = styled.h2`
-  font-size: 1.8rem;
+  font-size: 2rem;
   font-weight: bold;
   color: #202020;
   margin-bottom: 20px;
-  text-align: center;
+  padding-bottom: 5px;
+  text-align: left;
+  border-bottom: #202020 2px solid;
 `;
 
 export const Form = styled.form`
@@ -133,4 +135,28 @@ export const FileInput = styled.input`
   &:focus {
     border-color: #888;
   }
+`;
+
+export const ErrorMessage = styled.label`
+  display: block;
+  color: #dc3545; /* Color de error de Bootstrap */
+  background-color: #f8d7da; /* Fondo de error de Bootstrap */
+  border: 1px solid #f5c6cb;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.25rem;
+  text-align: center;
+  margin-top: 1rem;
+`;
+
+export const LoadingMessage = styled.label`
+  display: block;
+  color: #0c5460; /* Color de texto de carga de Bootstrap */
+  background-color: #d1ecf1; /* Fondo de carga de Bootstrap */
+  border: 1px solid #bee5eb;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.25rem;
+  text-align: center;
+  margin-top: 1rem;
 `;

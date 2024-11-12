@@ -61,7 +61,9 @@ export function useHoroscope() {
             formData.append("content", horoscope.content);
 
             // Adjuntamos la imagen si existe, o un string vacío si no hay imagen
-            formData.append("image", horoscope.image || "");
+            if (horoscope.image instanceof File) {
+                formData.append("image", horoscope.image || "");
+            }
 
             const response = await fetch(`${API_URL}/horoscope/edit`, {
                 method: 'POST',
