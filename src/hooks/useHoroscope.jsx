@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+const API_URL = "http://localhost:8000/api";
+
 export function useHoroscope() {
 
     const [horoscope, setHoroscope] = useState({
@@ -32,7 +34,7 @@ export function useHoroscope() {
 
     const fetchHoroscope = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/horoscope', {
+            const response = await fetch(`${API_URL}/horoscope`, {
                 method: 'POST'
             });
             const data = await response.json();
@@ -61,7 +63,7 @@ export function useHoroscope() {
             // Adjuntamos la imagen si existe, o un string vacío si no hay imagen
             formData.append("image", horoscope.image || "");
 
-            const response = await fetch('http://localhost:8000/api/horoscope/edit', {
+            const response = await fetch(`${API_URL}/horoscope/edit`, {
                 method: 'POST',
                 body: formData,
                 headers: {

@@ -2,6 +2,8 @@ import styled from "styled-components";
 import Navbar from "../components/Navbar";
 import { useHoroscope } from "../hooks/useHoroscope";
 
+const PUBLIC_URL = "http://localhost:8000/storage";
+
 const Page = styled.section`
 
     font-family: sans-serif;
@@ -64,7 +66,7 @@ export default function Horoscopo() {
                 <h1>Horoscopo bizarro</h1>
                 <div role="card">
                     <div>
-                        <img src={`http://localhost:8000/storage/${horoscope.image}`} alt="Foto para el horoscopo de una cabra" />
+                        <img src={`${PUBLIC_URL}/${horoscope.image}`} alt="Foto para el horoscopo de una cabra" />
                     </div>
                     <div>
                         <h3>{horoscope.title}</h3>
