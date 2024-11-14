@@ -33,6 +33,23 @@ export const GreenButton = styled.button`
   }
 `;
 
+export const CustomButton = styled.button`
+  background-color: ${({ color }) => (color ? color : '#1f973b')};
+  color: #fff;
+  font-size: 1.1rem;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  max-width: 150px;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5);
+  }
+`;
+
 export const PublishedButton = styled.button`
   background-color: ${({ isPrimary }) => (isPrimary ? '#007bff' : '#6c757d')};
   color: #fff;
