@@ -40,30 +40,30 @@ const ButtonContainer = styled.div`
 `;
 
 // eslint-disable-next-line react/prop-types
-const EventList = ({ events, onEdit, onToggleVisibility, onDelete }) => {
-    // Función para truncar el texto de la descripción
-    const truncateDescription = (text, maxWords) => {
-        const words = text.split(' ');
-        return words.length > maxWords
-            ? words.slice(0, maxWords).join(' ') + '...'
-            : text;
-    };
+const EventList = ({ events, onEdit, onDelete }) => {
+  // Función para truncar el texto de la descripción
+  const truncateDescription = (text, maxWords) => {
+    const words = text.split(' ');
+    return words.length > maxWords
+      ? words.slice(0, maxWords).join(' ') + '...'
+      : text;
+  };
 
-    return (
-        <EventContainer>
-            {events.map((event) => (
-                <EventItem key={event.id}>
-                    <EventTitle>{event.title}</EventTitle>
-                    <EventDescription>{truncateDescription(event.description, 35)}</EventDescription>
-                    <ButtonContainer>
-                        <CustomButton color='#4CAF50'>Editar</CustomButton>
-                        <CustomButton color='#FF9800'>Publicar</CustomButton>
-                        <CustomButton color='#F44336'>Eliminar</CustomButton>
-                    </ButtonContainer>
-                </EventItem>
-            ))}
-        </EventContainer>
-    );
+  return (
+    <EventContainer>
+      {/* eslint-disable-next-line react/prop-types */}
+      {events.map((event) => (
+        <EventItem key={event.id}>
+          <EventTitle>{event.title}</EventTitle>
+          <EventDescription>{truncateDescription(event.description, 35)}</EventDescription>
+          <ButtonContainer>
+            <CustomButton onClick={() => onEdit(event.id)} color='#4CAF50'>Editar</CustomButton>
+            <CustomButton onClick={() => onDelete(event.id)} color='#F44336'>Eliminar</CustomButton>
+          </ButtonContainer>
+        </EventItem>
+      ))}
+    </EventContainer>
+  );
 };
 
 export default EventList;
