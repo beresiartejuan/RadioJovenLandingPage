@@ -28,8 +28,19 @@ export async function PUT(request, { params }) {
 
   const { title, description, published } = body || {};
   // Actualización "merge": los campos ausentes conservan el valor previo.
-  if (title !== undefined) events[index].title = title;
-  if (description !== undefined) events[index].description = description;
+  // Validación de tipo igual que en POST, solo sobre los campos presentes:
+  // no-string, o title string vacío explícito → 400.
+  const titlePresent = title !== undefined;
+  const descriptionPresent = description !== undefined;
+  if (
+    (titlePresent && (typeof title !== 'string' || title.length === 0)) ||
+    (descriptionPresent && typeof description !== 'string')
+  ) {
+    return Response.json({ error: 'title y description son requeridos' }, { status: 400 });
+  }
+
+  if (titlePresent) events[index].title = title;
+  if (descriptionPresent) events[index].description = description;
   if (published !== undefined) events[index].published = Boolean(published);
 
   await setEvents(events);

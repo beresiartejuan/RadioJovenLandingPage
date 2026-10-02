@@ -1,15 +1,20 @@
+import { jsonWithCache } from '../lib/http.js';
 import { getHoroscope } from '../lib/store.js';
 
 // GET /api/horoscope y POST /api/horoscope — públicas, mismo comportamiento.
 // 200 { title, content, image } con defaults si la key `horoscope` está vacía.
-export async function GET() {
+// `image` es una URL externa (string, puede ser '').
+async function handle() {
   const horoscope = await getHoroscope();
-  return Response.json(horoscope);
+  return jsonWithCache(horoscope);
+}
+
+export async function GET() {
+  return handle();
 }
 
 export async function POST() {
-  const horoscope = await getHoroscope();
-  return Response.json(horoscope);
+  return handle();
 }
 
 // Otros métodos → 405

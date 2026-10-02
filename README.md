@@ -37,11 +37,11 @@ api/            Funciones serverless (Web API Request/Response)
   events.js         GET|POST /api/events
   events/[id].js    PUT|DELETE /api/events/:id
   horoscope.js      GET|POST /api/horoscope
-  horoscope/edit.js POST multipart /api/horoscope/edit
-  storage/[key].js  GET /api/storage/:key  → imágenes
+  horoscope/edit.js POST JSON /api/horoscope/edit
 lib/            Helpers compartidos (no crean endpoints)
   redis.js          Singleton de conexión Redis
   auth.js           Token HMAC (node:crypto) + requireAuth
+  http.js           Respuestas JSON con Cache-Control público
   store.js          CRUD JSON sobre Redis
 src/            Frontend (React)
 scripts/        Harness de integración de la API (pnpm test:api)
@@ -53,11 +53,10 @@ scripts/        Harness de integración de la API (pnpm test:api)
 |---|---|---|
 | `/api/auth/login` | POST `{email, password}` | — |
 | `/api/auth/me` | POST | Bearer |
-| `/api/events` | GET (público), POST | POST: Bearer |
+| `/api/events` | GET (filtrado: público ve solo `published:true`; con Bearer ve todos), POST | POST: Bearer |
 | `/api/events/:id` | PUT, DELETE | Bearer |
 | `/api/horoscope` | GET, POST (equivalentes) | — |
-| `/api/horoscope/edit` | POST multipart `title`, `content`, `image?` | Bearer |
-| `/api/storage/:key` | GET | — |
+| `/api/horoscope/edit` | POST JSON `{title, content, imageUrl}` | Bearer |
 
 La autenticación es de admin único: `ADMIN_EMAIL`/`ADMIN_PASSWORD` en variables
 de entorno, token firmado con HMAC-SHA256 (`AUTH_SECRET`) sin dependencias.
