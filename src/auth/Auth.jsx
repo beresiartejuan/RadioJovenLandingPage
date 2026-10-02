@@ -1,18 +1,9 @@
-import createStore from 'react-auth-kit/createStore';
-import useSignIn from 'react-auth-kit/hooks/useSignIn';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import { useAuth } from './AuthContext';
 
-export const AuthStore = createStore({
-    authName: '_auth',
-    authType: 'localstorage',
-    cookieDomain: window.location.hostname,
-    cookieSecure: window.location.protocol === 'https:',
-});
-
-// eslint-disable-next-line react-refresh/only-export-components
 export function useLogin() {
-    const signIn = useSignIn();
+    const { signIn } = useAuth();
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [, navigate] = useLocation();
@@ -53,11 +44,9 @@ export function useLogin() {
 
             // Inicio de sesión en la aplicación
             const signedIn = signIn({
-                auth: {
-                    token: loginData.access_token,
-                    type: loginData.token_type
-                },
-                userState: userData
+                token: loginData.access_token,
+                tokenType: loginData.token_type,
+                user: userData
             });
 
             if (!signedIn) {

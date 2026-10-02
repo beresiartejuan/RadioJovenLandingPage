@@ -1,4 +1,4 @@
-import useIsAuthenticated from 'react-auth-kit/hooks/useIsAuthenticated'
+import { useIsAuthenticated } from './AuthContext'
 import { useLocation } from 'wouter';
 
 export default function Unauthenticate(props) {
