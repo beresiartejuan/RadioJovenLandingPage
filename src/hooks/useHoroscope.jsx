@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../auth/AuthContext";
 
 const API_URL = "/api/horoscope";
 
 export function useHoroscope() {
-    const { token } = useAuth();
+    const { token, signOut } = useAuth();
 
     const [horoscope, setHoroscope] = useState({
         title: '',
@@ -25,15 +25,21 @@ export function useHoroscope() {
     };
 
     // Headers de autorización con el token de la sesión
-    const authHeaders = () => ({
+    const authHeaders = useCallback(() => ({
         'Authorization': `Bearer ${token?.value ?? token}`
-    });
+    }), [token]);
 
-    const fetchHoroscope = async () => {
+    const fetchHoroscope = useCallback(async () => {
         try {
             const response = await fetch(API_URL, {
                 method: 'POST'
             });
+            if (!response.ok) {
+                if (response.status === 401) {
+                    signOut();
+                }
+                throw new Error("Error al obtener el horóscopo");
+            }
             const data = await response.json();
 
             setHoroscope(prevData => ({
@@ -46,7 +52,7 @@ export function useHoroscope() {
             console.error("Error fetching horoscope:", error);
             setError("Error al obtener el horóscopo");
         }
-    };
+    }, [signOut]);
 
     const updateHoroscope = async () => {
         setLoading(true);
@@ -69,6 +75,9 @@ export function useHoroscope() {
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    signOut();
+                }
                 throw new Error("Error al actualizar el horóscopo");
             }
             alert("Horóscopo actualizado con éxito");
@@ -82,7 +91,7 @@ export function useHoroscope() {
 
     useEffect(() => {
         fetchHoroscope();
-    }, []);
+    }, [fetchHoroscope]);
 
     return { horoscope, handleChangeEvent, updateHoroscope, loading, error };
 }
