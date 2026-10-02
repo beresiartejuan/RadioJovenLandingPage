@@ -8,6 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "dev:vercel": "vercel dev --listen 3000",
+    "test:api": "node --env-file=.env scripts/test-api.mjs",
     "preinstall": "npx only-allow pnpm"
   },
   "packageManager": "pnpm@10.30.3",
@@ -18,6 +20,7 @@
     "normalize.css": "^8.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "redis": "^6.3.0",
     "styled-components": "^6.5.3",
     "wouter": "^3.13.0"
   },
