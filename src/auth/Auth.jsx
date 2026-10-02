@@ -14,7 +14,7 @@ export function useLogin() {
 
         try {
 
-            const loginResponse = await fetch('http://localhost:8000/api/auth/login', {
+            const loginResponse = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -28,7 +28,7 @@ export function useLogin() {
 
             const loginData = await loginResponse.json();
 
-            const userResponse = await fetch('http://localhost:8000/api/auth/me', {
+            const userResponse = await fetch('/api/auth/me', {
                 method: 'POST',
                 headers: {
                     'Authorization': `${loginData.token_type} ${loginData.access_token}`,

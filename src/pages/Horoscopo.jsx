@@ -2,7 +2,7 @@ import styled from "styled-components";
 import Navbar from "../components/Navbar";
 import { useHoroscope } from "../hooks/useHoroscope";
 
-const PUBLIC_URL = "http://localhost:8000/storage";
+const PUBLIC_URL = "";
 
 const Page = styled.section`
 
