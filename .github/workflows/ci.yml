@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, lint y tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      # El package manager depende de la rama: npm en main, pnpm en las
+      # ramas de migración. Se detecta por lockfile para que los PRs de
+      # migración muestren checks equivalentes a los de su rama base.
+      - name: Detectar package manager
+        id: pm
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+          else
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Activar pnpm (corepack)
+        if: steps.pm.outputs.manager == 'pnpm'
+        run: corepack enable
+
+      - name: Instalar dependencias (pnpm)
+        if: steps.pm.outputs.manager == 'pnpm'
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar dependencias (npm)
+        if: steps.pm.outputs.manager == 'npm'
+        run: npm ci
+
+      - name: Lint
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm run lint
+          else
+            npm run lint
+          fi
+
+      - name: Build
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm run build
+          else
+            npm run build
+          fi
+
+      # tests:api existe solo en las ramas con backend (feat/vercel-api+).
+      # En CI no hay .env: --env-file-if-exists evita que falle por eso y
+      # deja que el harness reporte los errores de conexión como fallo.
+      - name: Tests de integración de la API
+        if: ${{ hashFiles('scripts/test-api.mjs') != '' }}
+        env:
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_USERNAME: ${{ secrets.REDIS_USERNAME }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+        run: node --env-file-if-exists=.env scripts/test-api.mjs
+
+      - name: Subir artefacto de build
+        if: steps.pm.outputs.manager == 'pnpm' || steps.pm.outputs.manager == 'npm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
