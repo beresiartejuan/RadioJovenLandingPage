@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Route, Switch } from 'wouter';
-import AuthProvider from 'react-auth-kit/AuthProvider';
+import { AuthProvider } from './auth/AuthContext';
 
 import 'normalize.css';
 
@@ -10,11 +10,10 @@ import Horoscopo from './pages/Horoscopo';
 import Eventos from './pages/Eventos';
 import Login from './pages/Login';
 import Panel from './pages/Panel';
-import { AuthStore } from './auth/Auth';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider store={AuthStore}>
+    <AuthProvider>
       <Switch>
         <Route path="/" component={Index} />
         <Route path="/horoscopo" component={Horoscopo} />

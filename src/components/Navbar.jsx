@@ -1,7 +1,7 @@
 import style from "../scss/Navbar.module.scss";
 import MenuIcon from "../assets/MenuIcon.jsx";
 import { useState } from "react";
-import useIsAuthenticated from "react-auth-kit/hooks/useIsAuthenticated";
+import { useIsAuthenticated } from "../auth/AuthContext";
 
 export default function Navbar() {
 
