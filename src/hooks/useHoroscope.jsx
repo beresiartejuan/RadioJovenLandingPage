@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../auth/AuthContext";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = "/api/horoscope";
 
 export function useHoroscope() {
+    const { token } = useAuth();
 
     const [horoscope, setHoroscope] = useState({
         title: '',
@@ -31,6 +33,11 @@ export function useHoroscope() {
 
         console.log(horoscope)
     };
+
+    // Headers de autorización con el token de la sesión
+    const authHeaders = () => ({
+        'Authorization': `Bearer ${token?.value ?? token}`
+    });
 
     const fetchHoroscope = async () => {
         try {
@@ -65,12 +72,10 @@ export function useHoroscope() {
                 formData.append("image", horoscope.image || "");
             }
 
-            const response = await fetch(`${API_URL}/horoscope/edit`, {
+            const response = await fetch(`${API_URL}/edit`, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'Authorization': `Bearer ${window.localStorage.getItem('_auth')}`
-                }
+                headers: authHeaders()
             });
 
             console.log(await response.json());
