@@ -1,7 +1,7 @@
 import style from "../scss/Navbar.module.scss";
 import MenuIcon from "../assets/MenuIcon.jsx";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth, useIsAuthenticated } from "../auth/AuthContext";
 
 export default function Navbar() {
@@ -23,11 +23,11 @@ export default function Navbar() {
                 <MenuIcon onClick={() => setOpen(!isOpen)} />
             </div>
             <div className={`${isOpen ? style.show : ''}`}>
-                <a className="item" href="/">Inicio</a>
-                <a className="item" href="/horoscopo">Horoscopo</a>
-                <a className="item" href="/eventos">Eventos</a>
-                {!isAuthenticated && <a className="item" href="/ingresar">Ingresar</a>}
-                {isAuthenticated && <a href="/panel">Panel</a>}
+                <Link className="item" href="/">Inicio</Link>
+                <Link className="item" href="/horoscopo">Horoscopo</Link>
+                <Link className="item" href="/eventos">Eventos</Link>
+                {!isAuthenticated && <Link className="item" href="/ingresar">Ingresar</Link>}
+                {isAuthenticated && <Link href="/panel">Panel</Link>}
                 {isAuthenticated && (
                     <button
                         type="button"

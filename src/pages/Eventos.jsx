@@ -1,30 +1,6 @@
 import styled from "styled-components";
 import Navbar from "../components/Navbar";
-
-const data = [
-    {
-        title: "Programación Festival de Viña del Mar 2024",
-        description: "El acto que inaugurará el Festival de Viña del Mar 2024 el domingo 25 de febrero será el español Alejandro Sanz, intérprete de temas como «Corazón partío» y «La tortura», noche que compartirá con el colombiano y exponente del género urbano Manuel Turizo. El mundialmente aclamado Andrea Bocelli pisará el escenario de la Quinta Vergara el lunes 26, junto con el dúo argentino Miranda!. Por otro lado, Maná y Men at Work se presentarán el martes 27; Mora y Anitta el miércoles 28; Los Bunkers y Young Cister, —quienes marcarán el regreso de la emblemática «noche chilena»— el jueves 29; y Peso Pluma y María Becerra, que cerrarán el evento, el viernes 1 de marzo.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/foto_0000001520231108115410-1024x1024.jpg"
-    },
-    {
-        title: "Shakira se presentará en Latinoamérica",
-        description: "El año que viene con su gira mundial Las mujeres ya no lloran. Anunció que se presentará en la Argentina y también en Brasil, Perú, Colombia, Chile y México. “¡Mi gente nos vemos pronto!”, expresó la artista en redes sociales. La cita en Buenos Aires es el 7 de marzo de 2025 en el Campo Argentino de Polo.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/1727913154092post-Shakira-254x300.jpg"
-    },
-    {
-        title: "Diego Torres en Argentina",
-        description: "Diego Torres anuncia su gira en Argentina: fechas, lugares y cómo sacar las entradas. El cantante llega con “Mejor que ayer Tour” a Rosario, Santa Fe, Buenos Aires y Mendoza.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/GYQ1qxEWMAAXXT_-768x768.jpg"
-    },
-    {
-        title: "Los Caligaris",
-        description: "Caligaris y toda su alegría en el Arena Maipú. La banda cordobesa aterriza en Mendoza para que cantes y bailes todos sus hits. La banda se presentará el sábado 26 de octubre, en el Arena Maipú. Las entradas ya están a la venta.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/slider-1536x626-1-300x122.jpg"
-    }
-];
-
-
+import useEvents from "../hooks/useEvents";
 
 const Column = styled.section`
     font-family: sans-serif;
@@ -64,30 +40,29 @@ const Column = styled.section`
             p {
                 font-size: 1.1rem;
             }
-
-            img {
-                width: 100%;
-                max-width: 300px;
-                height: auto;
-                object-fit: fill; /* Ajusta la imagen dentro del contenedor */
-                border-radius: 8px; /* Opcional: redondea bordes */
-            }
         }
     }
 `;
 
 export default function Eventos() {
+    const { events, loading, error } = useEvents();
+
     return (
         <>
             <Navbar />
             <Column>
                 <h1>Eventos</h1>
 
-                {data.map((evento, index) => (
-                    <div key={index}>
-                        <div>
-                            <img src={evento.image} alt="" />
-                        </div>
+                {error && (
+                    <p role="alert">No se pudieron cargar los eventos. Intentá de nuevo más tarde.</p>
+                )}
+                {loading && <p>Cargando eventos...</p>}
+                {!loading && !error && events.length === 0 && (
+                    <p>No hay eventos publicados por el momento</p>
+                )}
+
+                {events.map((evento, index) => (
+                    <div key={evento.id ?? index}>
                         <div>
                             <h3>{evento.title}</h3>
                             <p>{evento.description}</p>
