@@ -1,4 +1,4 @@
-import { Section, Title, Textarea, Form, FieldGroup, Label, Input, RowGroup, FileInput, GreenButton, ErrorMessage } from "../styled";
+import { Section, Title, Textarea, Form, FieldGroup, Label, Input, RowGroup, GreenButton, ErrorMessage } from "../styled";
 import { useHoroscope } from "../hooks/useHoroscope";
 
 export default function HoroscopoPanel() {
@@ -12,7 +12,7 @@ export default function HoroscopoPanel() {
     return (
         <Section>
             <Title>Horoscopo</Title>
-            <Form onSubmit={handleSubmit} encType="multipart/form-data">
+            <Form onSubmit={handleSubmit}>
                 <FieldGroup>
                     <Label>Título</Label>
                     <Input
@@ -33,8 +33,14 @@ export default function HoroscopoPanel() {
                     />
                 </FieldGroup>
                 <FieldGroup>
-                    <Label>Foto de portada</Label>
-                    <FileInput name="image" onChange={handleChangeEvent} type="file" />
+                    <Label>URL de la imagen</Label>
+                    <Input
+                        name="image"
+                        type="text"
+                        value={horoscope.image}
+                        onChange={handleChangeEvent}
+                        placeholder="https://... URL de la imagen"
+                    />
                 </FieldGroup>
                 {error && <ErrorMessage>{error}</ErrorMessage>}
                 <RowGroup>

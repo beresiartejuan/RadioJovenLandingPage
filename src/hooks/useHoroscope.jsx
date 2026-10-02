@@ -10,28 +10,18 @@ export function useHoroscope() {
         title: '',
         content: '',
         published: true,
-        image: '' // Almacenamos el archivo de imagen aquí
+        image: '' // URL de la imagen del horóscopo
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const handleChangeEvent = (e) => {
-        const { name, value, files } = e.target;
+        const { name, value } = e.target;
 
-        // Verificar si es el campo de archivo
-        if (name === "image" && files.length > 0) {
-            setHoroscope(prevHoroscope => ({
-                ...prevHoroscope,
-                image: files[0]
-            }));
-        } else {
-            setHoroscope(prevHoroscope => ({
-                ...prevHoroscope,
-                [name]: value
-            }));
-        }
-
-        console.log(horoscope)
+        setHoroscope(prevHoroscope => ({
+            ...prevHoroscope,
+            [name]: value
+        }));
     };
 
     // Headers de autorización con el token de la sesión
@@ -41,7 +31,7 @@ export function useHoroscope() {
 
     const fetchHoroscope = async () => {
         try {
-            const response = await fetch(`${API_URL}/horoscope`, {
+            const response = await fetch(API_URL, {
                 method: 'POST'
             });
             const data = await response.json();
@@ -63,22 +53,20 @@ export function useHoroscope() {
         setError(null);
 
         try {
-            const formData = new FormData();
-            formData.append("title", horoscope.title);
-            formData.append("content", horoscope.content);
-
-            // Adjuntamos la imagen si existe, o un string vacío si no hay imagen
-            if (horoscope.image instanceof File) {
-                formData.append("image", horoscope.image || "");
-            }
-
+            // El backend espera JSON con imageUrl: los campos vacíos ('') conservan
+            // el valor previo guardado. `image` es ahora la URL como string.
             const response = await fetch(`${API_URL}/edit`, {
                 method: 'POST',
-                body: formData,
-                headers: authHeaders()
+                headers: {
+                    ...authHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: horoscope.title,
+                    content: horoscope.content,
+                    imageUrl: horoscope.image
+                })
             });
-
-            console.log(await response.json());
 
             if (!response.ok) {
                 throw new Error("Error al actualizar el horóscopo");
