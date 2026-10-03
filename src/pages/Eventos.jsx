@@ -1,47 +1,86 @@
 import styled from "styled-components";
 import Navbar from "../components/Navbar";
 import useEvents from "../hooks/useEvents";
+import { LoadingMessage, ErrorMessage, Badge } from "../styled";
 
-const Column = styled.section`
-    font-family: sans-serif;
+const Page = styled.main`
+  min-height: calc(100vh - var(--navbar-height));
+  padding: var(--space-2xl) var(--space-lg) var(--space-3xl);
+`;
 
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    padding: 0;
-    text-align: center;
+const Header = styled.div`
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto var(--space-2xl);
 
-    h1 {
-        font-size: 2rem;
-        margin: 10vh 0;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
+  h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
 
-    div {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        max-width: 1000px;
-        gap: 2rem;
-        margin: 2vh auto;
+  p {
+    color: var(--color-text-secondary);
+    font-size: 1.1rem;
+  }
+`;
 
-        div {
-            margin: 0 auto;
-            gap: 0;
-            max-width: 50%;
-            text-align: left;
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-xl);
+  max-width: var(--container-max);
+  margin: 0 auto;
+`;
 
-            h3 {
-                font-size: 1.5rem;
-                max-height: fit-content;
-            }
+const EventCard = styled.article`
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  padding: var(--space-xl);
+  text-align: left;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
 
-            p {
-                font-size: 1.1rem;
-            }
-        }
-    }
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .date {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: var(--space-md);
+  }
+
+  h3 {
+    font-size: 1.35rem;
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
+
+  p {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: var(--space-3xl) var(--space-lg);
+  color: var(--color-text-secondary);
+
+  .emoji {
+    font-size: 3rem;
+    margin-bottom: var(--space-md);
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
 `;
 
 export default function Eventos() {
@@ -50,26 +89,37 @@ export default function Eventos() {
     return (
         <>
             <Navbar />
-            <Column>
-                <h1>Eventos</h1>
+            <Page>
+                <Header>
+                    <h1>Próximos eventos 🎉</h1>
+                    <p>Enterate de todo lo que se viene en Radio Joven Mendoza.</p>
+                </Header>
 
-                {error && (
-                    <p role="alert">No se pudieron cargar los eventos. Intentá de nuevo más tarde.</p>
-                )}
-                {loading && <p>Cargando eventos...</p>}
+                {error && <ErrorMessage role="alert">No se pudieron cargar los eventos. Intentá de nuevo más tarde.</ErrorMessage>}
+                {loading && <LoadingMessage>Cargando eventos...</LoadingMessage>}
+
                 {!loading && !error && events.length === 0 && (
-                    <p>No hay eventos publicados por el momento</p>
+                    <EmptyState>
+                        <div className="emoji">🎤</div>
+                        <h3>No hay eventos publicados</h3>
+                        <p>Por el momento no tenemos eventos activos. Volvé pronto para enterarte de las novedades.</p>
+                    </EmptyState>
                 )}
 
-                {events.map((evento, index) => (
-                    <div key={evento.id ?? index}>
-                        <div>
-                            <h3>{evento.title}</h3>
-                            <p>{evento.description}</p>
-                        </div>
-                    </div>
-                ))}
-            </Column>
+                {!loading && !error && events.length > 0 && (
+                    <Grid>
+                        {events.map((evento, index) => (
+                            <EventCard key={evento.id ?? index}>
+                                <div className="date">
+                                    <Badge>📅 Próximamente</Badge>
+                                </div>
+                                <h3>{evento.title}</h3>
+                                <p>{evento.description}</p>
+                            </EventCard>
+                        ))}
+                    </Grid>
+                )}
+            </Page>
         </>
     );
 }
