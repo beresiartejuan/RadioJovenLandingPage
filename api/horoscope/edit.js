@@ -1,66 +1,60 @@
 import { requireAuth } from '../../lib/auth.js';
-import { getRedis } from '../../lib/redis.js';
 import { getHoroscope, setHoroscope } from '../../lib/store.js';
 
-const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3MB
+/**
+ * `imageUrl` es válida si es un string con URL absoluta http/https.
+ * Vacía/ausente/null → no se considera (conserva el valor previo).
+ */
+function normalizeImageUrl(imageUrl) {
+  if (imageUrl === undefined || imageUrl === null || imageUrl === '') {
+    return { provided: false };
+  }
+  if (typeof imageUrl !== 'string') {
+    return { provided: true, valid: false };
+  }
+  try {
+    const url = new URL(imageUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return { provided: true, valid: false };
+    }
+    return { provided: true, valid: true, value: imageUrl };
+  } catch {
+    return { provided: true, valid: false };
+  }
+}
 
-// POST /api/horoscope/edit — auth, multipart/form-data con title, content e
-// image (File opcional, máx 3MB). Guarda en Redis:
-//   - key `horoscope`: JSON { title, content, image }
-//   - key `horoscope:image`: JSON { data: <base64>, mime } si viene imagen
-// `image` siempre es "api/storage/horoscope" (sin slash inicial cuando hay imagen).
-// 200 { ok: true, title, content, image } | 401 sin token | 400 body inválido | 413 imagen > 3MB
+// POST /api/horoscope/edit — auth, JSON { title?, content?, imageUrl? }
+// Campos opcionales: los ausentes (o string vacío) conservan el valor previo.
+// `imageUrl`, cuando viene no vacía, debe ser URL http/https válida y se guarda
+// tal cual: la imagen vive externa, no se sirve desde esta API.
+// 200 { ok: true, title, content, image } | 401 sin token | 400 body inválido
 export async function POST(request) {
   const auth = requireAuth(request);
   if (!auth) {
     return Response.json({ error: 'no autorizado' }, { status: 401 });
   }
 
-  let formData;
+  let body;
   try {
-    formData = await request.formData();
+    body = await request.json();
   } catch {
-    return Response.json({ error: 'multipart/form-data inválido' }, { status: 400 });
+    return Response.json({ error: 'cuerpo JSON inválido' }, { status: 400 });
+  }
+
+  const { title, content, imageUrl } = body || {};
+
+  const urlResult = normalizeImageUrl(imageUrl);
+  if (urlResult.provided && !urlResult.valid) {
+    return Response.json({ error: 'imageUrl inválida' }, { status: 400 });
   }
 
   const existing = await getHoroscope();
-  const title = formData.get('title');
-  const content = formData.get('content');
 
-  // Conserva los valores previos cuando un campo de texto no viene.
+  // Conserva los valores previos cuando un campo no viene (o viene vacío).
   const nextTitle = typeof title === 'string' && title.length > 0 ? title : existing.title;
   const nextContent =
     typeof content === 'string' && content.length > 0 ? content : existing.content;
-
-  const file = formData.get('image');
-  let nextImage = existing.image;
-
-  if (file && typeof file === 'object' && typeof file.arrayBuffer === 'function') {
-    if (file.size > MAX_IMAGE_BYTES) {
-      return Response.json({ error: 'la imagen supera los 3MB' }, { status: 413 });
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const redis = await getRedis();
-
-    // Fuente de verdad para la edición (contrato): `horoscope:image`.
-    await redis.set(
-      'horoscope:image',
-      JSON.stringify({
-        data: buffer.toString('base64'),
-        mime: file.type || 'application/octet-stream',
-      }),
-    );
-    // Copia servible por GET /api/storage/:key (lee de `storage:<key>`).
-    await redis.set(
-      'storage:horoscope',
-      JSON.stringify({
-        data: buffer.toString('base64'),
-        mime: file.type || 'application/octet-stream',
-      }),
-    );
-    nextImage = 'api/storage/horoscope';
-  }
+  const nextImage = urlResult.provided ? urlResult.value : existing.image;
 
   const horoscope = { title: nextTitle, content: nextContent, image: nextImage };
   await setHoroscope(horoscope);

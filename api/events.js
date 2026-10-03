@@ -1,11 +1,17 @@
-import { requireAuth } from '../lib/auth.js';
-import { getEvents, setEvents } from '../lib/store.js';
+import { requireAuth } from "../lib/auth.js";
+import { jsonWithCache } from "../lib/http.js";
+import { getEvents, getPublishedEvents, setEvents } from "../lib/store.js";
 
 // GET /api/events — público
-// 200 [ { id, title, description, published } ] (todos, sin filtrar por published)
-export async function GET() {
-  const events = await getEvents();
-  return Response.json(events);
+// Sin token → solo `published: true` (cacheable en edge). Con Bearer válido →
+// todos, sin cache: es una variante autenticada del mismo URL.
+// 200 [ { id, title, description, published } ]
+export async function GET(request) {
+  const auth = requireAuth(request);
+  if (auth) {
+    return Response.json(await getEvents());
+  }
+  return jsonWithCache(await getPublishedEvents());
 }
 
 // POST /api/events — auth
@@ -24,7 +30,12 @@ export async function POST(request) {
   }
 
   const { title, description, published } = body || {};
-  if (typeof title !== 'string' || typeof description !== 'string') {
+  if (
+    typeof title !== 'string' ||
+    title.length === 0 ||
+    typeof description !== 'string' ||
+    description.length === 0
+  ) {
     return Response.json({ error: 'title y description son requeridos' }, { status: 400 });
   }
 
