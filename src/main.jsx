@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Route, Switch } from 'wouter';
 import { AuthProvider } from './auth/AuthContext';
+import GlobalStyles from './styles/GlobalStyles';
 
 import 'normalize.css';
 
@@ -14,6 +15,7 @@ import Panel from './pages/Panel';
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
+      <GlobalStyles />
       <Switch>
         <Route path="/" component={Index} />
         <Route path="/horoscopo" component={Horoscopo} />
