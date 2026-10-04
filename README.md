@@ -38,6 +38,9 @@ api/            Funciones serverless (Web API Request/Response)
   events/[id].js    PUT|DELETE /api/events/:id
   horoscope.js      GET|POST /api/horoscope
   horoscope/edit.js POST JSON /api/horoscope/edit
+  config.js         GET|PUT /api/config
+  schedule.js       GET|POST /api/schedule
+  schedule/[id].js  PUT|DELETE /api/schedule/:id
 lib/            Helpers compartidos (no crean endpoints)
   redis.js          Singleton de conexión Redis
   auth.js           Token HMAC (node:crypto) + requireAuth
@@ -57,6 +60,9 @@ scripts/        Harness de integración de la API (pnpm test:api)
 | `/api/events/:id` | PUT, DELETE | Bearer |
 | `/api/horoscope` | GET, POST (equivalentes) | — |
 | `/api/horoscope/edit` | POST JSON `{title, content, imageUrl}` | Bearer |
+| `/api/config` | GET (config del sitio con Cache-Control), PUT JSON parcial (merge) | PUT: Bearer |
+| `/api/schedule` | GET (array con Cache-Control), POST `{days, time, title, host}` | POST: Bearer |
+| `/api/schedule/:id` | PUT (merge), DELETE | Bearer |
 
 La autenticación es de admin único: `ADMIN_EMAIL`/`ADMIN_PASSWORD` en variables
 de entorno, token firmado con HMAC-SHA256 (`AUTH_SECRET`) sin dependencias.
