@@ -7,6 +7,15 @@ import WidgetContainer from "../components/WidgetContainer";
 import Horarios from "../components/Horarios";
 import SocialMedia from "../components/SocialMedia";
 import PlayIcon from "../assets/PlayIcon.jsx";
+import useConfig from "../hooks/useConfig";
+
+// Fallback en memoria mientras la config no llegó o la API falla: la home
+// nunca queda sin imagen de publicidad ni texto de presentación.
+const FALLBACK_CONFIG = {
+    ad: { imageUrl: "/publi.jpeg", linkUrl: "", alt: "Publicidad" },
+    streamUrl: "https://sc.host-live.com/8222/stream",
+    tagline: "La radio de General Alvear que te acompaña con música, buena onda y la mejor programación.",
+};
 
 const Hero = styled.section`
   position: relative;
@@ -127,6 +136,11 @@ const AdCard = styled.div`
 `;
 
 export default function Index() {
+    const { config } = useConfig();
+    const ad = config?.ad ?? FALLBACK_CONFIG.ad;
+    const tagline = config?.tagline ?? FALLBACK_CONFIG.tagline;
+    const streamUrl = config?.streamUrl ?? FALLBACK_CONFIG.streamUrl;
+
     return (
         <>
             <Navbar />
@@ -135,7 +149,7 @@ export default function Index() {
                     <div className="logoGlow" aria-hidden="true" />
                     <img className="logo" src="/logo.jpeg" alt="Radio Joven Mendoza" />
                     <h1>Radio Joven Mendoza</h1>
-                    <p className="tagline">La radio de General Alvear que te acompaña con música, buena onda y la mejor programación.</p>
+                    <p className="tagline">{tagline}</p>
                     <a className="cta" href="#player">
                         <PlayIcon />
                         Escuchar en vivo
@@ -148,17 +162,23 @@ export default function Index() {
                     <ClimaWidget />
                     <RelojWidget />
                     <AdCard className="ad">
-                        <img src="/publi.jpeg" alt="Publicidad" />
+                        {ad.linkUrl ? (
+                            <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer">
+                                <img src={ad.imageUrl} alt={ad.alt} />
+                            </a>
+                        ) : (
+                            <img src={ad.imageUrl} alt={ad.alt} />
+                        )}
                     </AdCard>
                 </WidgetContainer>
             </WidgetsSection>
 
             <div id="player" style={{ scrollMarginTop: "calc(var(--navbar-height) + 1rem)" }}>
-                <RadioWidget />
+                <RadioWidget streamUrl={streamUrl} />
             </div>
 
-            <Horarios />
-            <SocialMedia />
+            <Horarios scheduleTitle={config?.scheduleTitle} />
+            <SocialMedia config={config} />
         </>
     );
 }

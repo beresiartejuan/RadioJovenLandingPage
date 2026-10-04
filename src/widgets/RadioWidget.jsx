@@ -72,7 +72,10 @@ const Player = styled.div`
   }
 `;
 
-export default function RadioWidget() {
+// eslint-disable-next-line react/prop-types
+export default function RadioWidget({ streamUrl }) {
+    const source = streamUrl || "https://sc.host-live.com/8222/stream";
+
     return (
         <Player>
             <img
@@ -84,7 +87,7 @@ export default function RadioWidget() {
                 <span>Radio Joven Mendoza · General Alvear</span>
             </div>
             <audio id="stream" controls preload="none">
-                <source src="https://sc.host-live.com/8222/stream" type="audio/mpeg" />
+                <source src={source} type="audio/mpeg" />
             </audio>
         </Player>
     );
