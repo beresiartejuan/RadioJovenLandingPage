@@ -1,18 +1,31 @@
 /**
  * Harness de integración de la API: importa los handlers directamente desde
  * ../api/*.js y ejecuta el flujo completo con `new Request(...)` reales contra
- * el Redis Cloud configurado en .env.
+ * Turso (SQLite serverless) configurado en .env.
  *
  * Es idempotente: crea su propio evento de test y lo borra al final, y no
- * asume que las keys de Redis arranquen vacías. Limpia las keys de rate limit
- * propias (ratelimit:<ip>) al inicio y al final del run. Para `site:config` y
- * `schedule` guarda un snapshot al inicio y lo restaura al final.
+ * asume que las tablas de Turso arranquen vacías. Limpia las entradas de rate
+ * limit propias (tabla `rateLimits`) al inicio y al final del run. Para
+ * `config`, `schedule`, `horoscope` y `events` guarda un snapshot al inicio y lo
+ * restaura al final.
  *
  * Uso: `pnpm run test:api` (node --env-file=.env)
  */
 import { signToken } from '../lib/auth.js';
-import { getRedis } from '../lib/redis.js';
-import { getHoroscope, getSchedule, setHoroscope, setSchedule } from '../lib/store.js';
+import { eq } from 'drizzle-orm';
+import { getDb } from '../lib/db/client.js';
+import { config, horoscope, rateLimits, schedule } from '../lib/db/schema.js';
+import {
+  getConfig,
+  getEvents,
+  getHoroscope,
+  getSchedule,
+  setConfig,
+  setEvents,
+  setHoroscope,
+  setSchedule,
+} from '../lib/store.js';
+import { resetRateLimit } from '../lib/ratelimit.js';
 
 const results = [];
 let failed = false;
@@ -47,7 +60,7 @@ function assertCacheControl(res) {
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-// IP fija del harness para el rate limit del login; sus keys `ratelimit:<ip>`
+// IP fija del harness para el rate limit del login; sus filas en `rateLimits`
 // se limpian al inicio y al final del run.
 const HARNESS_IP = '203.0.113.77';
 
@@ -64,17 +77,20 @@ const handlers = {
 };
 
 async function main() {
-  // Conexión real a Redis Cloud (falla rápido si las credenciales/TLS están mal).
-  const redis = await getRedis();
+  // Conexión real a Turso (falla rápido si las credenciales están mal).
+  getDb();
 
   // Estado limpio de rate limit: el harness no debe heredar intentos de la
   // corrida anterior ni bloquearse a sí mismo en la próxima.
-  await redis.del(`ratelimit:${HARNESS_IP}`);
+  await resetRateLimit(HARNESS_IP);
+  await resetRateLimit(`${HARNESS_IP}-b`);
 
-  // Snapshots de las keys nuevas (config/schedule): los tests parten de un
-  // estado controlado y al final se restaura el estado previo.
-  const configSnapshot = await redis.get('site:config');
-  const scheduleSnapshot = await redis.get('schedule');
+  // Snapshots del estado mutable: los tests parten de un estado controlado y
+  // al final se restaura el estado previo.
+  const configBefore = await getConfig();
+  const scheduleBefore = await getSchedule();
+  const horoscopeBefore = await getHoroscope();
+  const eventsBefore = await getEvents();
 
   await check('1. login password incorrecto → 401', async () => {
     const res = await handlers.login(
@@ -107,9 +123,9 @@ async function main() {
     assert(body.token_type === 'Bearer', `token_type ${body.token_type}, esperado Bearer`);
     token = body.access_token;
 
-    // El login correcto borra la key `ratelimit:<ip>` (DEL).
-    const hits = await redis.get(`ratelimit:${HARNESS_IP}`);
-    assert(hits === null, `ratelimit no reseteado tras login correcto (hits=${hits})`);
+    // El login correcto borra la fila de rate limit de esta IP.
+    const remaining = await getDb().select().from(rateLimits).where(eq(rateLimits.ip, HARNESS_IP)).limit(1);
+    assert(remaining.length === 0, 'ratelimit no reseteado tras login correcto');
   });
 
   await check('3. me con token → 200 con email', async () => {
@@ -358,8 +374,8 @@ async function main() {
   });
 
   await check('11. GET/POST /api/horoscope → defaults si vacío, con Cache-Control', async () => {
-    // Dejamos la key vacía para validar el default.
-    await redis.del('horoscope');
+    // Dejamos la tabla vacía para validar el default.
+    await getDb().delete(horoscope).where(eq(horoscope.id, 1));
 
     const get = await handlers.horoscope.GET(
       new Request('http://localhost/api/horoscope', { method: 'GET' }),
@@ -384,7 +400,6 @@ async function main() {
       content: 'Contenido previo',
       image: 'https://example.com/previa.png',
     });
-    await redis.del('horoscope:image'); // ya no se usa; si quedara sucio, irrelevante
 
     const res = await handlers.horoscopeEdit(
       new Request('http://localhost/api/horoscope/edit', {
@@ -531,7 +546,7 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Site config (key `site:config`) — el snapshot tomado al inicio se restaura
+  // Site config (tabla `config`) — el snapshot tomado al inicio se restaura
   // en la limpieza final.
   // ---------------------------------------------------------------------------
 
@@ -549,7 +564,7 @@ async function main() {
   };
 
   await check('17. GET /api/config con key vacía → 200 defaults con Cache-Control', async () => {
-    await redis.del('site:config');
+    await getDb().delete(config).where(eq(config.id, 1));
 
     const get = await handlers.config.GET(
       new Request('http://localhost/api/config', { method: 'GET' }),
@@ -562,9 +577,9 @@ async function main() {
       `config != defaults: ${JSON.stringify(body)}`,
     );
 
-    // La key debe seguir vacía: el GET no escribe (sin write-through).
-    const stored = await redis.get('site:config');
-    assert(stored === null, `GET escribió la key (write-through): ${stored}`);
+    // La fila debe seguir ausente: el GET no escribe (sin write-through).
+    const stored = await getDb().select().from(config).where(eq(config.id, 1)).limit(1);
+    assert(stored.length === 0, 'GET escribió la fila (write-through)');
   });
 
   await check('18. PUT /api/config sin token → 401', async () => {
@@ -643,14 +658,14 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Schedule (key `schedule`) — CRUD completo; los items de test se borran en
+  // Schedule (tabla `schedule`) — CRUD completo; los items de test se borran en
   // la limpieza final (además del snapshot restaurado al final).
   // ---------------------------------------------------------------------------
 
   const createdProgramIds = [];
 
   await check('21. GET /api/schedule con key vacía → 200 [] con Cache-Control', async () => {
-    await redis.del('schedule');
+    await getDb().delete(schedule);
 
     const get = await handlers.schedule.GET(
       new Request('http://localhost/api/schedule', { method: 'GET' }),
@@ -778,34 +793,28 @@ async function main() {
     assert(missing.status === 404, `DELETE inexistente: status ${missing.status}, esperado 404`);
   });
 
-  // Limpieza: borra las keys de rate limit del harness para no auto-bloquearse
-  // en la próxima corrida. NO toca `events` (los eventos de test ya fueron
-  // borrados) ni el horóscopo final (queda el último guardado por los tests).
-  // `site:config` y `schedule` vuelven al snapshot del inicio; si el run murió
-  // a mitad de camino y quedó basura, los items de test también se borran.
-  if (configSnapshot === null) {
-    await redis.del('site:config');
-  } else {
-    await redis.set('site:config', configSnapshot);
-  }
-  if (scheduleSnapshot === null) {
-    await redis.del('schedule');
-  } else {
-    await redis.set('schedule', scheduleSnapshot);
-  }
+  // Limpieza: borra las entradas de rate limit del harness para no auto-bloquearse
+  // en la próxima corrida. `config`, `schedule`, `horoscope` y `events` vuelven
+  // al snapshot del inicio; si el run murió a mitad de camino y quedó basura,
+  // los items de test también se borran.
+  await setConfig(configBefore);
+  await setSchedule(scheduleBefore);
+  await setHoroscope(horoscopeBefore);
+  await setEvents(eventsBefore);
+
   for (const id of createdProgramIds) {
-    const schedule = await getSchedule();
-    if (schedule.some((item) => item.id === id)) {
-      await setSchedule(schedule.filter((item) => item.id !== id));
+    const currentSchedule = await getSchedule();
+    if (currentSchedule.some((item) => item.id === id)) {
+      await setSchedule(currentSchedule.filter((item) => item.id !== id));
     }
   }
-  await redis.del(`ratelimit:${HARNESS_IP}`, `ratelimit:${HARNESS_IP}-b`);
+  await resetRateLimit(HARNESS_IP);
+  await resetRateLimit(`${HARNESS_IP}-b`);
 }
 
 
 main()
   .then(() => {
-    void import('../lib/redis.js').then(({ getRedis: close }) => close().then((client) => client.quit()));
     console.log('');
     for (const r of results) {
       console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.ok ? '' : ` — ${r.error}`}`);
