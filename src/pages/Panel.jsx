@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Authenticate from "../auth/Authenticate";
 import HoroscopoPanel from "../components/HoroscopoPanel";
 import EventosPanel from "../components/EventosPanel";
+import ConfigPanel from "../components/ConfigPanel";
 
 const Page = styled.main`
   min-height: calc(100vh - var(--navbar-height));
@@ -79,7 +80,7 @@ export default function Panel() {
             <Page>
                 <Header>
                     <h1>Panel de administración 🛠️</h1>
-                    <p>Gestioná el horóscopo y los eventos de Radio Joven.</p>
+                    <p>Gestioná el horóscopo, los eventos y la configuración del sitio.</p>
                 </Header>
 
                 <Tabs>
@@ -89,11 +90,15 @@ export default function Panel() {
                     <Tab active={activeTab === "eventos"} onClick={() => setActiveTab("eventos")}>
                         🎉 Eventos
                     </Tab>
+                    <Tab active={activeTab === "config"} onClick={() => setActiveTab("config")}>
+                        ⚙️ Configuración
+                    </Tab>
                 </Tabs>
 
                 <PanelContainer key={activeTab}>
                     {activeTab === "horoscopo" && <HoroscopoPanel />}
                     {activeTab === "eventos" && <EventosPanel />}
+                    {activeTab === "config" && <ConfigPanel />}
                 </PanelContainer>
             </Page>
         </Authenticate>
