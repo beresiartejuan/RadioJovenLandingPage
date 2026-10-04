@@ -1,4 +1,8 @@
+import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
+import { ErrorMessage, LoadingMessage } from "../styled";
+
+const SCHEDULE_API_URL = "/api/schedule";
 
 const Section = styled.section`
   max-width: var(--container-max);
@@ -88,44 +92,83 @@ const Card = styled.article`
   }
 `;
 
-const programas = [
-    {
-        dias: "Lunes a sábados",
-        hora: "09:00 a 13:00",
-        titulo: "RCS",
-        host: "Pablo Gonzalez",
-    },
-    {
-        dias: "Lunes a viernes",
-        hora: "17:00 a 20:00",
-        titulo: "Está En Verde",
-        host: "Daiana Navarro",
-    },
-    {
-        dias: "Lunes a viernes",
-        hora: "20:00 a 24:00",
-        titulo: "Galeria 100",
-        host: "Mauricio Jofré",
-    },
-];
+const EmptyState = styled.div`
+  padding: var(--space-2xl) 0;
+  color: var(--color-text-secondary);
 
-export default function Horarios() {
+  .emoji {
+    font-size: 2.5rem;
+    margin-bottom: var(--space-sm);
+  }
+
+  h3 {
+    font-size: 1.35rem;
+    margin-bottom: var(--space-xs);
+    color: var(--color-text);
+  }
+`;
+
+// eslint-disable-next-line react/prop-types
+export default function Horarios({ scheduleTitle: scheduleTitleProp }) {
+    const [programas, setProgramas] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const fetchProgramas = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(SCHEDULE_API_URL);
+            if (!response.ok) {
+                throw new Error("Error al obtener la programación");
+            }
+            const data = await response.json();
+            setProgramas(Array.isArray(data) ? data : []);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchProgramas();
+    }, [fetchProgramas]);
+
+    // El título configurable llega por prop desde Index (una sola llamada a
+    // /api/config por página); fallback si la prop no viene.
+    const scheduleTitle = scheduleTitleProp || "Programación";
+
     return (
         <Section>
             <div className="header">
-                <h2>Programación 2025</h2>
+                <h2>{scheduleTitle}</h2>
                 <p>Todos los días con la mejor música y compañía</p>
             </div>
-            <div className="grid">
-                {programas.map((p) => (
-                    <Card key={p.titulo}>
-                        <span className="time">{p.dias} · {p.hora}</span>
-                        <h3>{p.titulo}</h3>
-                        <p>{`Con la conducción de ${p.host}`}</p>
-                        <span className="host">🎙️ {p.host}</span>
-                    </Card>
-                ))}
-            </div>
+
+            {loading && <LoadingMessage>Cargando programación...</LoadingMessage>}
+            {error && <ErrorMessage role="alert">No se pudo cargar la programación. Intentá de nuevo más tarde.</ErrorMessage>}
+
+            {!loading && !error && programas.length === 0 && (
+                <EmptyState>
+                    <div className="emoji">📻</div>
+                    <h3>Programación a confirmar</h3>
+                    <p>Estamos preparando la grilla. Volvé pronto para ver los horarios actualizados.</p>
+                </EmptyState>
+            )}
+
+            {!loading && !error && programas.length > 0 && (
+                <div className="grid">
+                    {programas.map((p) => (
+                        <Card key={p.id}>
+                            <span className="time">{p.days} · {p.time}</span>
+                            <h3>{p.title}</h3>
+                            <p>{`Con la conducción de ${p.host}`}</p>
+                            <span className="host">🎙️ {p.host}</span>
+                        </Card>
+                    ))}
+                </div>
+            )}
         </Section>
     );
 }

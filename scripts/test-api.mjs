@@ -5,13 +5,14 @@
  *
  * Es idempotente: crea su propio evento de test y lo borra al final, y no
  * asume que las keys de Redis arranquen vacías. Limpia las keys de rate limit
- * propias (ratelimit:<ip>) al inicio y al final del run.
+ * propias (ratelimit:<ip>) al inicio y al final del run. Para `site:config` y
+ * `schedule` guarda un snapshot al inicio y lo restaura al final.
  *
  * Uso: `pnpm run test:api` (node --env-file=.env)
  */
 import { signToken } from '../lib/auth.js';
 import { getRedis } from '../lib/redis.js';
-import { getHoroscope, setHoroscope } from '../lib/store.js';
+import { getHoroscope, getSchedule, setHoroscope, setSchedule } from '../lib/store.js';
 
 const results = [];
 let failed = false;
@@ -57,6 +58,9 @@ const handlers = {
   eventId: await import('../api/events/[id].js'),
   horoscope: await import('../api/horoscope.js'),
   horoscopeEdit: (await import('../api/horoscope/edit.js')).POST,
+  config: await import('../api/config.js'),
+  schedule: await import('../api/schedule.js'),
+  scheduleId: await import('../api/schedule/[id].js'),
 };
 
 async function main() {
@@ -66,6 +70,11 @@ async function main() {
   // Estado limpio de rate limit: el harness no debe heredar intentos de la
   // corrida anterior ni bloquearse a sí mismo en la próxima.
   await redis.del(`ratelimit:${HARNESS_IP}`);
+
+  // Snapshots de las keys nuevas (config/schedule): los tests parten de un
+  // estado controlado y al final se restaura el estado previo.
+  const configSnapshot = await redis.get('site:config');
+  const scheduleSnapshot = await redis.get('schedule');
 
   await check('1. login password incorrecto → 401', async () => {
     const res = await handlers.login(
@@ -521,9 +530,275 @@ async function main() {
     assert(res.status === 200, `status ${res.status}, esperado 200`);
   });
 
+  // ---------------------------------------------------------------------------
+  // Site config (key `site:config`) — el snapshot tomado al inicio se restaura
+  // en la limpieza final.
+  // ---------------------------------------------------------------------------
+
+  const CONFIG_DEFAULT = {
+    ad: { imageUrl: '/publi.jpeg', linkUrl: '', alt: 'Publicidad' },
+    streamUrl: 'https://sc.host-live.com/8222/stream',
+    whatsapp: { href: 'https://wa.me/2625523555', defaultText: '¡Hola Radio Joven!' },
+    socials: {
+      x: 'https://x.com/radiojovenalv',
+      facebook: 'https://www.facebook.com/radiojovenmendoza',
+      instagram: 'https://www.instagram.com/radiojovenmendoza/',
+    },
+    tagline: 'La radio de General Alvear que te acompaña con música, buena onda y la mejor programación.',
+    scheduleTitle: 'Programación 2026',
+  };
+
+  await check('17. GET /api/config con key vacía → 200 defaults con Cache-Control', async () => {
+    await redis.del('site:config');
+
+    const get = await handlers.config.GET(
+      new Request('http://localhost/api/config', { method: 'GET' }),
+    );
+    assert(get.status === 200, `status ${get.status}, esperado 200`);
+    assertCacheControl(get);
+    const body = await parseJson(get);
+    assert(
+      JSON.stringify(body) === JSON.stringify(CONFIG_DEFAULT),
+      `config != defaults: ${JSON.stringify(body)}`,
+    );
+
+    // La key debe seguir vacía: el GET no escribe (sin write-through).
+    const stored = await redis.get('site:config');
+    assert(stored === null, `GET escribió la key (write-through): ${stored}`);
+  });
+
+  await check('18. PUT /api/config sin token → 401', async () => {
+    const res = await handlers.config.PUT(
+      new Request('http://localhost/api/config', {
+        method: 'PUT',
+        body: JSON.stringify({ tagline: 'x' }),
+      }),
+    );
+    assert(res.status === 401, `status ${res.status}, esperado 401`);
+  });
+
+  let savedConfig;
+
+  await check('19. PUT /api/config parcial con token → 200 { ok, config } con merge', async () => {
+    const res = await handlers.config.PUT(
+      new Request('http://localhost/api/config', {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          tagline: 'Tagline editado por el harness',
+          socials: { x: 'https://x.com/nueva-cuenta' },
+        }),
+      }),
+    );
+    assert(res.status === 200, `status ${res.status}, esperado 200`);
+    const body = await parseJson(res);
+    assert(body.ok === true, 'body.ok distinto de true');
+
+    // Campos editados.
+    assert(body.config.tagline === 'Tagline editado por el harness', `tagline "${body.config.tagline}" inesperado`);
+    assert(body.config.socials.x === 'https://x.com/nueva-cuenta', `socials.x "${body.config.socials.x}" inesperado`);
+
+    // El resto conserva los defaults (merge, no reemplazo del objeto).
+    assert(body.config.socials.facebook === CONFIG_DEFAULT.socials.facebook, `socials.facebook "${body.config.socials.facebook}", esperado conservar`);
+    assert(body.config.ad.imageUrl === CONFIG_DEFAULT.ad.imageUrl, `ad.imageUrl "${body.config.ad.imageUrl}", esperado conservar`);
+    assert(body.config.streamUrl === CONFIG_DEFAULT.streamUrl, `streamUrl "${body.config.streamUrl}", esperado conservar`);
+
+    savedConfig = body.config;
+  });
+
+  await check('20. PUT /api/config campo inválido → 400 con { error, field }', async () => {
+    const cases = [
+      { body: { streamUrl: 'ftp://sc.host-live.com/stream' }, field: 'streamUrl' },
+      { body: { socials: { instagram: 'no-es-una-url' } }, field: 'instagram' },
+      { body: { ad: { linkUrl: 'no-es-una-url' } }, field: 'linkUrl' },
+      { body: { tagline: 42 }, field: 'tagline' },
+      { body: { whatsapp: { href: 'no-es-una-url' } }, field: 'href' },
+      { body: { scheduleTitle: 'x'.repeat(301) }, field: 'scheduleTitle' },
+    ];
+    for (const { body, field } of cases) {
+      const res = await handlers.config.PUT(
+        new Request('http://localhost/api/config', {
+          method: 'PUT',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+      );
+      assert(res.status === 400, `${field}: status ${res.status}, esperado 400`);
+      const parsed = await parseJson(res);
+      assert(typeof parsed.error === 'string' && parsed.error.length > 0, `${field}: error ausente`);
+      assert(parsed.field === field, `${field}: field "${parsed.field}" inesperado`);
+    }
+
+    // ad.imageUrl admite también path relativo que empieza con '/'.
+    const relative = await handlers.config.PUT(
+      new Request('http://localhost/api/config', {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ ad: { imageUrl: '/otra-publi.png' } }),
+      }),
+    );
+    assert(relative.status === 200, `ad.imageUrl relativo: status ${relative.status}, esperado 200`);
+    savedConfig = (await parseJson(relative)).config;
+    assert(savedConfig.ad.imageUrl === '/otra-publi.png', `ad.imageUrl "${savedConfig.ad.imageUrl}" inesperado`);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Schedule (key `schedule`) — CRUD completo; los items de test se borran en
+  // la limpieza final (además del snapshot restaurado al final).
+  // ---------------------------------------------------------------------------
+
+  const createdProgramIds = [];
+
+  await check('21. GET /api/schedule con key vacía → 200 [] con Cache-Control', async () => {
+    await redis.del('schedule');
+
+    const get = await handlers.schedule.GET(
+      new Request('http://localhost/api/schedule', { method: 'GET' }),
+    );
+    assert(get.status === 200, `status ${get.status}, esperado 200`);
+    assertCacheControl(get);
+    const body = await parseJson(get);
+    assert(Array.isArray(body) && body.length === 0, `esperado [], recibido ${JSON.stringify(body)}`);
+  });
+
+  await check('22. POST /api/schedule sin token → 401', async () => {
+    const res = await handlers.schedule.POST(
+      new Request('http://localhost/api/schedule', {
+        method: 'POST',
+        body: JSON.stringify({ days: 'x', time: 'y', title: 'z', host: 'w' }),
+      }),
+    );
+    assert(res.status === 401, `status ${res.status}, esperado 401`);
+  });
+
+  let programId;
+
+  await check('23. POST /api/schedule con token → 201 { id, ... } y GET público lo lista', async () => {
+    const res = await handlers.schedule.POST(
+      new Request('http://localhost/api/schedule', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          days: 'Lunes a viernes',
+          time: '09:00 a 13:00',
+          title: 'Mañana joven (harness)',
+          host: 'Conduce el harness',
+        }),
+      }),
+    );
+    assert(res.status === 201, `status ${res.status}, esperado 201`);
+    const item = await parseJson(res);
+    assert(typeof item.id === 'string' && item.id.length > 0, 'id ausente en la respuesta');
+    assert(item.days === 'Lunes a viernes', `days "${item.days}" inesperado`);
+    assert(item.time === '09:00 a 13:00', `time "${item.time}" inesperado`);
+    assert(item.title === 'Mañana joven (harness)', `title "${item.title}" inesperado`);
+    assert(item.host === 'Conduce el harness', `host "${item.host}" inesperado`);
+    programId = item.id;
+    createdProgramIds.push(programId);
+
+    const publicList = await parseJson(
+      await handlers.schedule.GET(new Request('http://localhost/api/schedule', { method: 'GET' })),
+    );
+    assert(
+      publicList.some((item) => item.id === programId),
+      'el programa creado no aparece en GET público',
+    );
+  });
+
+  await check('24. POST /api/schedule con campos vacíos o no-string → 400', async () => {
+    for (const body of [
+      { days: '', time: 'y', title: 'z', host: 'w' },
+      { days: 'x', time: '', title: 'z', host: 'w' },
+      { days: 'x', time: 'y', title: '', host: 'w' },
+      { days: 'x', time: 'y', title: 'z', host: '' },
+      { days: 42, time: 'y', title: 'z', host: 'w' },
+      { days: 'x', time: 'y', title: 'z' }, // host ausente
+    ]) {
+      const res = await handlers.schedule.POST(
+        new Request('http://localhost/api/schedule', {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+      );
+      assert(res.status === 400, `status ${res.status}, esperado 400 para ${JSON.stringify(body)}`);
+    }
+  });
+
+  await check('25. PUT /api/schedule/:id → 200 con merge; PUT inexistente → 404', async () => {
+    const merge = await handlers.scheduleId.PUT(
+      new Request(`http://localhost/api/schedule/${programId}`, {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ title: 'Mañana joven editada' }),
+      }),
+      { params: { id: programId } },
+    );
+    assert(merge.status === 200, `merge: status ${merge.status}, esperado 200`);
+    const updated = await parseJson(merge);
+    assert(updated.title === 'Mañana joven editada', `title "${updated.title}" inesperado`);
+    assert(updated.days === 'Lunes a viernes', `merge cambió days: "${updated.days}"`);
+    assert(updated.host === 'Conduce el harness', `merge cambió host: "${updated.host}"`);
+
+    const missing = await handlers.scheduleId.PUT(
+      new Request('http://localhost/api/schedule/no-existe', {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ title: 'no importa' }),
+      }),
+      { params: { id: 'no-existe' } },
+    );
+    assert(missing.status === 404, `PUT inexistente: status ${missing.status}, esperado 404`);
+  });
+
+  await check('26. DELETE /api/schedule/:id → 200 { ok } y desaparece; DELETE inexistente → 404', async () => {
+    const res = await handlers.scheduleId.DELETE(
+      new Request(`http://localhost/api/schedule/${programId}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${token}` },
+      }),
+      { params: { id: programId } },
+    );
+    assert(res.status === 200, `status ${res.status}, esperado 200`);
+    const body = await parseJson(res);
+    assert(body.ok === true, `body.ok ${body.ok}, esperado true`);
+
+    const list = await parseJson(
+      await handlers.schedule.GET(new Request('http://localhost/api/schedule', { method: 'GET' })),
+    );
+    assert(!list.some((item) => item.id === programId), 'el programa sigue en GET tras DELETE');
+
+    const missing = await handlers.scheduleId.DELETE(
+      new Request('http://localhost/api/schedule/no-existe', {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${token}` },
+      }),
+      { params: { id: 'no-existe' } },
+    );
+    assert(missing.status === 404, `DELETE inexistente: status ${missing.status}, esperado 404`);
+  });
+
   // Limpieza: borra las keys de rate limit del harness para no auto-bloquearse
   // en la próxima corrida. NO toca `events` (los eventos de test ya fueron
   // borrados) ni el horóscopo final (queda el último guardado por los tests).
+  // `site:config` y `schedule` vuelven al snapshot del inicio; si el run murió
+  // a mitad de camino y quedó basura, los items de test también se borran.
+  if (configSnapshot === null) {
+    await redis.del('site:config');
+  } else {
+    await redis.set('site:config', configSnapshot);
+  }
+  if (scheduleSnapshot === null) {
+    await redis.del('schedule');
+  } else {
+    await redis.set('schedule', scheduleSnapshot);
+  }
+  for (const id of createdProgramIds) {
+    const schedule = await getSchedule();
+    if (schedule.some((item) => item.id === id)) {
+      await setSchedule(schedule.filter((item) => item.id !== id));
+    }
+  }
   await redis.del(`ratelimit:${HARNESS_IP}`, `ratelimit:${HARNESS_IP}-b`);
 }
 
