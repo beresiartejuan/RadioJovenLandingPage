@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import { ErrorMessage, LoadingMessage } from "../styled";
-import useConfig from "../hooks/useConfig";
 
 const SCHEDULE_API_URL = "/api/schedule";
 
@@ -109,8 +108,8 @@ const EmptyState = styled.div`
   }
 `;
 
-export default function Horarios() {
-    const { config } = useConfig();
+// eslint-disable-next-line react/prop-types
+export default function Horarios({ scheduleTitle: scheduleTitleProp }) {
     const [programas, setProgramas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -136,7 +135,9 @@ export default function Horarios() {
         fetchProgramas();
     }, [fetchProgramas]);
 
-    const scheduleTitle = config?.scheduleTitle || "Programación";
+    // El título configurable llega por prop desde Index (una sola llamada a
+    // /api/config por página); fallback si la prop no viene.
+    const scheduleTitle = scheduleTitleProp || "Programación";
 
     return (
         <Section>

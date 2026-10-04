@@ -177,7 +177,7 @@ export default function Index() {
                 <RadioWidget streamUrl={streamUrl} />
             </div>
 
-            <Horarios />
+            <Horarios scheduleTitle={config?.scheduleTitle} />
             <SocialMedia config={config} />
         </>
     );
