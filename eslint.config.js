@@ -8,7 +8,7 @@ export default [
   { ignores: ['dist'] },
   // Backend serverless (api/, lib/) y scripts node: globals de Node, no de browser.
   {
-    files: ['api/**/*.js', 'lib/**/*.js', 'scripts/**/*.mjs'],
+    files: ['api/**/*.js', 'lib/**/*.js', 'scripts/**/*.mjs', 'drizzle.config.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

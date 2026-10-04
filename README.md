@@ -7,7 +7,7 @@ Landing page con panel de administración integrado. Incluye secciones de inicio
 ## Stack
 
 - **Frontend:** React 19 + Vite 7 + wouter + styled-components + Sass
-- **Backend:** funciones serverless de Vercel en `api/` con Redis Cloud como persistencia
+- **Backend:** funciones serverless de Vercel en `api/` con Turso (SQLite) como persistencia a través de Drizzle ORM
 - **Auth:** admin único con token HMAC-SHA256 (`node:crypto`), sin dependencias externas
 
 ## Requisitos
@@ -29,11 +29,25 @@ cp .env.example .env
 
 Completar en `.env`:
 
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`
+- `TURSO_TOKEN` y `TURSO_URL` (credenciales de la base Turso)
 - `ADMIN_EMAIL` y `ADMIN_PASSWORD`
 - `AUTH_SECRET` (generar con `openssl rand -hex 32`)
 
 > `vercel dev` lee únicamente `.env` en la raíz.
+
+## Migraciones de base de datos
+
+El esquema se define en `lib/db/schema.js`. Para aplicarlo (o regenerarlo) contra Turso:
+
+```bash
+pnpm db:push
+```
+
+Comandos disponibles:
+
+- `pnpm db:push` — sincroniza el esquema con la base remota
+- `pnpm db:generate` — genera migraciones SQL en `drizzle/`
+- `pnpm db:migrate` — aplica migraciones generadas
 
 ## Desarrollo
 
@@ -75,10 +89,12 @@ api/              Funciones serverless
   schedule/[id].js  PUT | DELETE /api/schedule/:id
 
 lib/              Helpers compartidos (no exponen endpoints)
-  redis.js          Cliente Redis singleton
+  db/schema.js      Esquema Drizzle ORM para Turso
+  db/client.js      Cliente Turso serverless singleton
   auth.js           HMAC + requireAuth
   http.js           Respuestas JSON con Cache-Control
-  store.js          CRUD JSON sobre Redis
+  store.js          CRUD con Drizzle sobre Turso
+  ratelimit.js      Rate limit por IP sobre Turso
 
 src/              Frontend React
   pages/            Index, Eventos, Horoscopo, Login, Panel
@@ -109,7 +125,7 @@ scripts/          Tests de integración de la API
 
 ## Tests de la API
 
-Ejecutan un flujo de integración real contra los handlers y Redis:
+Ejecutan un flujo de integración real contra los handlers y Turso:
 
 ```bash
 pnpm test:api
