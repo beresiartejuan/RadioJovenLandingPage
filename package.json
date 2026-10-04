@@ -10,17 +10,21 @@
     "preview": "vite preview",
     "dev:vercel": "vercel dev --listen 3000",
     "test:api": "node --env-file=.env scripts/test-api.mjs",
-    "preinstall": "npx only-allow pnpm"
+    "preinstall": "npx only-allow pnpm",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": "24.x"
   },
   "dependencies": {
+    "@tursodatabase/serverless": "1.4.0",
+    "drizzle-orm": "1.0.0-rc.4",
     "normalize.css": "^8.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "redis": "^6.3.0",
     "styled-components": "^6.5.3",
     "wouter": "^3.13.0"
   },
@@ -29,6 +33,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react-swc": "^4.3.3",
+    "drizzle-kit": "1.0.0-rc.4",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
