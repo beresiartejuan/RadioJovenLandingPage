@@ -1,3 +1,11 @@
 onlyBuiltDependencies:
   - esbuild
   - sass-embedded
+
+# GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, stack-exhaustion DoS):
+# sin versión parchada publicada (3.0.3 = latest). Es dependencia
+# DEV-only (sass > @parcel/watcher > micromatch > braces):
+# nunca llega al bundle ni a las funciones serverless. Aceptada.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
