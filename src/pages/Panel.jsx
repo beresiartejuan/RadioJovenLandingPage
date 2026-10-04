@@ -5,6 +5,7 @@ import Authenticate from "../auth/Authenticate";
 import HoroscopoPanel from "../components/HoroscopoPanel";
 import EventosPanel from "../components/EventosPanel";
 import ConfigPanel from "../components/ConfigPanel";
+import SchedulePanel from "../components/SchedulePanel";
 
 const Page = styled.main`
   min-height: calc(100vh - var(--navbar-height));
@@ -80,7 +81,7 @@ export default function Panel() {
             <Page>
                 <Header>
                     <h1>Panel de administración 🛠️</h1>
-                    <p>Gestioná el horóscopo, los eventos y la configuración del sitio.</p>
+                    <p>Gestioná el horóscopo, los eventos, la programación y la configuración del sitio.</p>
                 </Header>
 
                 <Tabs>
@@ -90,6 +91,9 @@ export default function Panel() {
                     <Tab active={activeTab === "eventos"} onClick={() => setActiveTab("eventos")}>
                         🎉 Eventos
                     </Tab>
+                    <Tab active={activeTab === "programacion"} onClick={() => setActiveTab("programacion")}>
+                        📅 Programación
+                    </Tab>
                     <Tab active={activeTab === "config"} onClick={() => setActiveTab("config")}>
                         ⚙️ Configuración
                     </Tab>
@@ -98,6 +102,7 @@ export default function Panel() {
                 <PanelContainer key={activeTab}>
                     {activeTab === "horoscopo" && <HoroscopoPanel />}
                     {activeTab === "eventos" && <EventosPanel />}
+                    {activeTab === "programacion" && <SchedulePanel />}
                     {activeTab === "config" && <ConfigPanel />}
                 </PanelContainer>
             </Page>
