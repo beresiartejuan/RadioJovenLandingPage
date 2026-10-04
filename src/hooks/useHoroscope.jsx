@@ -1,42 +1,45 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "../auth/AuthContext";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = "/api/horoscope";
 
 export function useHoroscope() {
+    const { token, signOut } = useAuth();
 
     const [horoscope, setHoroscope] = useState({
         title: '',
         content: '',
         published: true,
-        image: '' // Almacenamos el archivo de imagen aquí
+        image: '' // URL de la imagen del horóscopo
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const handleChangeEvent = (e) => {
-        const { name, value, files } = e.target;
+        const { name, value } = e.target;
 
-        // Verificar si es el campo de archivo
-        if (name === "image" && files.length > 0) {
-            setHoroscope(prevHoroscope => ({
-                ...prevHoroscope,
-                image: files[0]
-            }));
-        } else {
-            setHoroscope(prevHoroscope => ({
-                ...prevHoroscope,
-                [name]: value
-            }));
-        }
-
-        console.log(horoscope)
+        setHoroscope(prevHoroscope => ({
+            ...prevHoroscope,
+            [name]: value
+        }));
     };
 
-    const fetchHoroscope = async () => {
+    // Headers de autorización con el token de la sesión
+    const authHeaders = useCallback(() => ({
+        'Authorization': `Bearer ${token?.value ?? token}`
+    }), [token]);
+
+    const fetchHoroscope = useCallback(async () => {
         try {
-            const response = await fetch(`${API_URL}/horoscope`, {
+            const response = await fetch(API_URL, {
                 method: 'POST'
             });
+            if (!response.ok) {
+                if (response.status === 401) {
+                    signOut();
+                }
+                throw new Error("Error al obtener el horóscopo");
+            }
             const data = await response.json();
 
             setHoroscope(prevData => ({
@@ -49,33 +52,32 @@ export function useHoroscope() {
             console.error("Error fetching horoscope:", error);
             setError("Error al obtener el horóscopo");
         }
-    };
+    }, [signOut]);
 
     const updateHoroscope = async () => {
         setLoading(true);
         setError(null);
 
         try {
-            const formData = new FormData();
-            formData.append("title", horoscope.title);
-            formData.append("content", horoscope.content);
-
-            // Adjuntamos la imagen si existe, o un string vacío si no hay imagen
-            if (horoscope.image instanceof File) {
-                formData.append("image", horoscope.image || "");
-            }
-
-            const response = await fetch(`${API_URL}/horoscope/edit`, {
+            // El backend espera JSON con imageUrl: los campos vacíos ('') conservan
+            // el valor previo guardado. `image` es ahora la URL como string.
+            const response = await fetch(`${API_URL}/edit`, {
                 method: 'POST',
-                body: formData,
                 headers: {
-                    'Authorization': `Bearer ${window.localStorage.getItem('_auth')}`
-                }
+                    ...authHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: horoscope.title,
+                    content: horoscope.content,
+                    imageUrl: horoscope.image
+                })
             });
 
-            console.log(await response.json());
-
             if (!response.ok) {
+                if (response.status === 401) {
+                    signOut();
+                }
                 throw new Error("Error al actualizar el horóscopo");
             }
             alert("Horóscopo actualizado con éxito");
@@ -89,7 +91,7 @@ export function useHoroscope() {
 
     useEffect(() => {
         fetchHoroscope();
-    }, []);
+    }, [fetchHoroscope]);
 
     return { horoscope, handleChangeEvent, updateHoroscope, loading, error };
 }

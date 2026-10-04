@@ -1,16 +1,13 @@
+import { Redirect } from 'wouter';
 import { useIsAuthenticated } from './AuthContext'
-import { useLocation } from 'wouter';
 
 export default function Authenticate(props) {
     const isAuthenticated = useIsAuthenticated();
-    const [, navigate] = useLocation();
 
     if (!isAuthenticated) {
-        navigate("/ingresar");
-        return null;
+        return <Redirect href="/ingresar" />;
     }
 
     // eslint-disable-next-line react/prop-types
     return props.children;
 }
-

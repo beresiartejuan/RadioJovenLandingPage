@@ -1,100 +1,125 @@
 import styled from "styled-components";
 import Navbar from "../components/Navbar";
+import useEvents from "../hooks/useEvents";
+import { LoadingMessage, ErrorMessage, Badge } from "../styled";
 
-const data = [
-    {
-        title: "Programación Festival de Viña del Mar 2024",
-        description: "El acto que inaugurará el Festival de Viña del Mar 2024 el domingo 25 de febrero será el español Alejandro Sanz, intérprete de temas como «Corazón partío» y «La tortura», noche que compartirá con el colombiano y exponente del género urbano Manuel Turizo. El mundialmente aclamado Andrea Bocelli pisará el escenario de la Quinta Vergara el lunes 26, junto con el dúo argentino Miranda!. Por otro lado, Maná y Men at Work se presentarán el martes 27; Mora y Anitta el miércoles 28; Los Bunkers y Young Cister, —quienes marcarán el regreso de la emblemática «noche chilena»— el jueves 29; y Peso Pluma y María Becerra, que cerrarán el evento, el viernes 1 de marzo.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/foto_0000001520231108115410-1024x1024.jpg"
-    },
-    {
-        title: "Shakira se presentará en Latinoamérica",
-        description: "El año que viene con su gira mundial Las mujeres ya no lloran. Anunció que se presentará en la Argentina y también en Brasil, Perú, Colombia, Chile y México. “¡Mi gente nos vemos pronto!”, expresó la artista en redes sociales. La cita en Buenos Aires es el 7 de marzo de 2025 en el Campo Argentino de Polo.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/1727913154092post-Shakira-254x300.jpg"
-    },
-    {
-        title: "Diego Torres en Argentina",
-        description: "Diego Torres anuncia su gira en Argentina: fechas, lugares y cómo sacar las entradas. El cantante llega con “Mejor que ayer Tour” a Rosario, Santa Fe, Buenos Aires y Mendoza.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/GYQ1qxEWMAAXXT_-768x768.jpg"
-    },
-    {
-        title: "Los Caligaris",
-        description: "Caligaris y toda su alegría en el Arena Maipú. La banda cordobesa aterriza en Mendoza para que cantes y bailes todos sus hits. La banda se presentará el sábado 26 de octubre, en el Arena Maipú. Las entradas ya están a la venta.",
-        image: "https://radiojovenmendoza.com/wp-content/uploads/2024/10/slider-1536x626-1-300x122.jpg"
-    }
-];
+const Page = styled.main`
+  min-height: calc(100vh - var(--navbar-height));
+  padding: var(--space-2xl) var(--space-lg) var(--space-3xl);
+`;
 
+const Header = styled.div`
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto var(--space-2xl);
 
+  h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
 
-const Column = styled.section`
-    font-family: sans-serif;
+  p {
+    color: var(--color-text-secondary);
+    font-size: 1.1rem;
+  }
+`;
 
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    padding: 0;
-    text-align: center;
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-xl);
+  max-width: var(--container-max);
+  margin: 0 auto;
+`;
 
-    h1 {
-        font-size: 2rem;
-        margin: 10vh 0;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
+const EventCard = styled.article`
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  padding: var(--space-xl);
+  text-align: left;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
 
-    div {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        max-width: 1000px;
-        gap: 2rem;
-        margin: 2vh auto;
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
 
-        div {
-            margin: 0 auto;
-            gap: 0;
-            max-width: 50%;
-            text-align: left;
+  .date {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: var(--space-md);
+  }
 
-            h3 {
-                font-size: 1.5rem;
-                max-height: fit-content;
-            }
+  h3 {
+    font-size: 1.35rem;
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
 
-            p {
-                font-size: 1.1rem;
-            }
+  p {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+`;
 
-            img {
-                width: 100%;
-                max-width: 300px;
-                height: auto;
-                object-fit: fill; /* Ajusta la imagen dentro del contenedor */
-                border-radius: 8px; /* Opcional: redondea bordes */
-            }
-        }
-    }
+const EmptyState = styled.div`
+  text-align: center;
+  padding: var(--space-3xl) var(--space-lg);
+  color: var(--color-text-secondary);
+
+  .emoji {
+    font-size: 3rem;
+    margin-bottom: var(--space-md);
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
 `;
 
 export default function Eventos() {
+    const { events, loading, error } = useEvents();
+
     return (
         <>
             <Navbar />
-            <Column>
-                <h1>Eventos</h1>
+            <Page>
+                <Header>
+                    <h1>Próximos eventos 🎉</h1>
+                    <p>Enterate de todo lo que se viene en Radio Joven Mendoza.</p>
+                </Header>
 
-                {data.map((evento, index) => (
-                    <div key={index}>
-                        <div>
-                            <img src={evento.image} alt="" />
-                        </div>
-                        <div>
-                            <h3>{evento.title}</h3>
-                            <p>{evento.description}</p>
-                        </div>
-                    </div>
-                ))}
-            </Column>
+                {error && <ErrorMessage role="alert">No se pudieron cargar los eventos. Intentá de nuevo más tarde.</ErrorMessage>}
+                {loading && <LoadingMessage>Cargando eventos...</LoadingMessage>}
+
+                {!loading && !error && events.length === 0 && (
+                    <EmptyState>
+                        <div className="emoji">🎤</div>
+                        <h3>No hay eventos publicados</h3>
+                        <p>Por el momento no tenemos eventos activos. Volvé pronto para enterarte de las novedades.</p>
+                    </EmptyState>
+                )}
+
+                {!loading && !error && events.length > 0 && (
+                    <Grid>
+                        {events.map((evento, index) => (
+                            <EventCard key={evento.id ?? index}>
+                                <div className="date">
+                                    <Badge>📅 Próximamente</Badge>
+                                </div>
+                                <h3>{evento.title}</h3>
+                                <p>{evento.description}</p>
+                            </EventCard>
+                        ))}
+                    </Grid>
+                )}
+            </Page>
         </>
     );
 }
