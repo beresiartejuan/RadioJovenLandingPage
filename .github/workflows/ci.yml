@@ -63,13 +63,36 @@ jobs:
       # tests:api existe solo en las ramas con backend (feat/vercel-api+).
       # En CI no hay .env: --env-file-if-exists evita que falle por eso y
       # deja que el harness reporte los errores de conexión como fallo.
+      #
+      # Backend actual: Turso (SQLite) + Drizzle ORM. Secrets requeridos:
+      #   TURSO_URL, TURSO_TOKEN, ADMIN_EMAIL, ADMIN_PASSWORD, AUTH_SECRET.
+      - name: Validar secrets de Turso
+        if: ${{ hashFiles('scripts/test-api.mjs') != '' }}
+        run: |
+          missing=""
+          for secret in TURSO_URL TURSO_TOKEN ADMIN_EMAIL ADMIN_PASSWORD AUTH_SECRET; do
+            value="${!secret}"
+            if [ -z "$value" ]; then
+              missing="$missing $secret"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Faltan secrets de GitHub para test:api:$missing"
+            echo "Agregalos en Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+
       - name: Tests de integración de la API
         if: ${{ hashFiles('scripts/test-api.mjs') != '' }}
         env:
-          REDIS_HOST: ${{ secrets.REDIS_HOST }}
-          REDIS_PORT: ${{ secrets.REDIS_PORT }}
-          REDIS_USERNAME: ${{ secrets.REDIS_USERNAME }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
