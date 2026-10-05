@@ -1,75 +1,131 @@
-# Radio Joven — Landing Page
+# Radio Joven — Landing Page (práctica)
 
-Landing page + panel de administración de Radio Joven (General Alvear, Mendoza).
-Frontend: React 19 + Vite 7 + styled-components + wouter.
-Backend: funciones serverless de Vercel (`api/`) con Redis Cloud como persistencia.
+> **⚠️ Aviso importante:** este proyecto **NO es la web oficial de Radio Joven**. Es una landing page de práctica construida con fines educativos, inspirada en la imagen de Radio Joven de General Alvear, Mendoza.
+
+Landing page con panel de administración integrado. Incluye secciones de inicio, eventos, horóscopo y un panel privado para gestionar contenido.
+
+## Stack
+
+- **Frontend:** React 19 + Vite 7 + wouter + styled-components + Sass
+- **Backend:** funciones serverless de Vercel en `api/` con Turso (SQLite) como persistencia a través de Drizzle ORM
+- **Auth:** admin único con token HMAC-SHA256 (`node:crypto`), sin dependencias externas
 
 ## Requisitos
 
 - Node.js 24.x (fijado en `engines`)
 - pnpm 10 (`corepack enable` o `npm i -g pnpm`)
 
-## Desarrollo
+## Instalación
 
 ```bash
 pnpm install
-
-# Solo frontend (la API responderá con error de red)
-pnpm dev              # http://localhost:5173
-
-# Frontend + API serverless juntas (requiere Vercel CLI y .env completo)
-pnpm dev:vercel       # http://localhost:3000
 ```
 
-`vercel dev` lee únicamente `.env` en la raíz. Partí de `.env.example`:
+Crear el archivo de variables de entorno a partir del ejemplo:
 
 ```bash
 cp .env.example .env
-# completar REDIS_*, ADMIN_EMAIL, ADMIN_PASSWORD y AUTH_SECRET
 ```
 
-## Estructura
+Completar en `.env`:
+
+- `TURSO_TOKEN` y `TURSO_URL` (credenciales de la base Turso)
+- `ADMIN_EMAIL` y `ADMIN_PASSWORD`
+- `AUTH_SECRET` (generar con `openssl rand -hex 32`)
+
+> `vercel dev` lee únicamente `.env` en la raíz.
+
+## Migraciones de base de datos
+
+El esquema se define en `lib/db/schema.js`. Para aplicarlo (o regenerarlo) contra Turso:
+
+```bash
+pnpm db:push
+```
+
+Comandos disponibles:
+
+- `pnpm db:push` — sincroniza el esquema con la base remota
+- `pnpm db:generate` — genera migraciones SQL en `drizzle/`
+- `pnpm db:migrate` — aplica migraciones generadas
+
+## Desarrollo
+
+### Solo frontend
+
+La API responderá con errores de red, pero sirve para trabajar la UI.
+
+```bash
+pnpm dev        # http://localhost:5173
+```
+
+### Frontend + API serverless local
+
+Requiere Vercel CLI y un `.env` completo.
+
+```bash
+pnpm dev:vercel # http://localhost:3000
+```
+
+## Build y preview
+
+```bash
+pnpm build      # genera dist/
+pnpm preview    # sirve la build localmente
+```
+
+## Estructura del proyecto
 
 ```text
-api/            Funciones serverless (Web API Request/Response)
-  auth/login.js     POST /api/auth/login   → { access_token, token_type }
-  auth/me.js        POST /api/auth/me      → usuario autenticado
-  events.js         GET|POST /api/events
-  events/[id].js    PUT|DELETE /api/events/:id
-  horoscope.js      GET|POST /api/horoscope
-  horoscope/edit.js POST JSON /api/horoscope/edit
-  config.js         GET|PUT /api/config
-  schedule.js       GET|POST /api/schedule
-  schedule/[id].js  PUT|DELETE /api/schedule/:id
-lib/            Helpers compartidos (no crean endpoints)
-  redis.js          Singleton de conexión Redis
-  auth.js           Token HMAC (node:crypto) + requireAuth
-  http.js           Respuestas JSON con Cache-Control público
-  store.js          CRUD JSON sobre Redis
-src/            Frontend (React)
-scripts/        Harness de integración de la API (pnpm test:api)
+api/              Funciones serverless
+  auth/login.js     POST /api/auth/login
+  auth/me.js        POST /api/auth/me
+  events.js         GET | POST /api/events
+  events/[id].js    PUT | DELETE /api/events/:id
+  horoscope.js      GET | POST /api/horoscope
+  horoscope/edit.js POST /api/horoscope/edit
+  config.js         GET | PUT /api/config
+  schedule.js       GET | POST /api/schedule
+  schedule/[id].js  PUT | DELETE /api/schedule/:id
+
+lib/              Helpers compartidos (no exponen endpoints)
+  db/schema.js      Esquema Drizzle ORM para Turso
+  db/client.js      Cliente Turso serverless singleton
+  auth.js           HMAC + requireAuth
+  http.js           Respuestas JSON con Cache-Control
+  store.js          CRUD con Drizzle sobre Turso
+  ratelimit.js      Rate limit por IP sobre Turso
+
+src/              Frontend React
+  pages/            Index, Eventos, Horoscopo, Login, Panel
+  components/       UI reutilizables y paneles de admin
+  auth/             Contexto de autenticación
+  styles/           styled-components + variables SCSS
+  hooks/            Hooks personalizados
+
+scripts/          Tests de integración de la API
 ```
 
 ## API
 
-| Endpoint | Método | Auth |
-|---|---|---|
-| `/api/auth/login` | POST `{email, password}` | — |
-| `/api/auth/me` | POST | Bearer |
-| `/api/events` | GET (filtrado: público ve solo `published:true`; con Bearer ve todos), POST | POST: Bearer |
-| `/api/events/:id` | PUT, DELETE | Bearer |
-| `/api/horoscope` | GET, POST (equivalentes) | — |
-| `/api/horoscope/edit` | POST JSON `{title, content, imageUrl}` | Bearer |
-| `/api/config` | GET (config del sitio con Cache-Control), PUT JSON parcial (merge) | PUT: Bearer |
-| `/api/schedule` | GET (array con Cache-Control), POST `{days, time, title, host}` | POST: Bearer |
-| `/api/schedule/:id` | PUT (merge), DELETE | Bearer |
-
-La autenticación es de admin único: `ADMIN_EMAIL`/`ADMIN_PASSWORD` en variables
-de entorno, token firmado con HMAC-SHA256 (`AUTH_SECRET`) sin dependencias.
+| Endpoint | Método | Auth | Descripción |
+|---|---|---|---|
+| `/api/auth/login` | POST | — | `{email, password}` → `{access_token, token_type}` |
+| `/api/auth/me` | POST | Bearer | Devuelve el admin autenticado |
+| `/api/events` | GET | opcional | Público ve solo `published: true`; admin ve todos |
+| `/api/events` | POST | Bearer | Crea un evento |
+| `/api/events/:id` | PUT / DELETE | Bearer | Edita / elimina un evento |
+| `/api/horoscope` | GET / POST | — | Lee el horóscopo actual |
+| `/api/horoscope/edit` | POST | Bearer | Actualiza `{title, content, imageUrl}` |
+| `/api/config` | GET | — | Configuración pública del sitio |
+| `/api/config` | PUT | Bearer | Merge parcial de configuración |
+| `/api/schedule` | GET | — | Grilla de programación con cache |
+| `/api/schedule` | POST | Bearer | Crea un programa |
+| `/api/schedule/:id` | PUT / DELETE | Bearer | Edita / elimina un programa |
 
 ## Tests de la API
 
-Ejecutan el flujo completo contra los handlers reales y Redis real:
+Ejecutan un flujo de integración real contra los handlers y Turso:
 
 ```bash
 pnpm test:api
@@ -77,6 +133,10 @@ pnpm test:api
 
 ## Deploy
 
-- El rewrite de `vercel.json` excluye `/api/*` del fallback de la SPA.
-- Las variables de entorno (`REDIS_*`, `ADMIN_*`, `AUTH_SECRET`) van en el
-  dashboard de Vercel; local, bajarlas con `vercel env pull .env`.
+- El `vercel.json` redirige todo excepto `/api/*` al `index.html` de la SPA.
+- Las variables de entorno se configuran en el dashboard de Vercel.
+- Para descargarlas localmente: `vercel env pull .env`.
+
+## Licencia
+
+Proyecto de práctica sin fines comerciales.
