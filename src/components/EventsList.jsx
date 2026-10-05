@@ -52,10 +52,11 @@ const EmptyState = styled.p`
 // eslint-disable-next-line react/prop-types
 const EventsList = ({ events, onEdit, onDelete }) => {
   const truncateDescription = (text, maxWords) => {
-    const words = text.split(' ');
+    const safe = typeof text === 'string' ? text : '';
+    const words = safe.split(' ');
     return words.length > maxWords
       ? words.slice(0, maxWords).join(' ') + '...'
-      : text;
+      : safe;
   };
 
   // eslint-disable-next-line react/prop-types

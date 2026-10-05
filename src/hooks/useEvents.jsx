@@ -58,7 +58,7 @@ export default function useEvents() {
         }
     };
 
-    // Crear un evento
+    // Crear un evento. Devuelve true si tuvo éxito.
     const addEvent = async (newEvent) => {
         setError(null);
         try {
@@ -78,12 +78,14 @@ export default function useEvents() {
             }
             const created = await response.json();
             setEvents((prevEvents) => [...prevEvents, created]);
+            return true;
         } catch (err) {
             setError(err.message);
+            return false;
         }
     };
 
-    // Editar un evento
+    // Editar un evento. Devuelve true si tuvo éxito.
     const editEvent = async (id, updatedEvent) => {
         setError(null);
         try {
@@ -107,8 +109,10 @@ export default function useEvents() {
                     event.id === id ? { ...event, ...updatedData } : event
                 )
             );
+            return true;
         } catch (err) {
             setError(err.message);
+            return false;
         }
     };
 

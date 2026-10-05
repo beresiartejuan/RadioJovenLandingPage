@@ -1,20 +1,20 @@
 import { requireAuth } from '../lib/auth.js';
-import { jsonWithCache } from '../lib/http.js';
+import { jsonWithCache, withHandler } from '../lib/http.js';
 import { getConfig, setConfig } from '../lib/store.js';
 
 // GET /api/config — público con cache: 200 config completa.
 // Si la key `site:config` no existe responde defaults SIN escribir en Redis
 // (no write-through: el GET es edge-cacheable y convertirlo en write
 // multiplicaría escrituras bajo tráfico; el primer PUT persiste la key).
-export async function GET() {
+export const GET = withHandler(async () => {
   return jsonWithCache(await getConfig());
-}
+});
 
 // PUT /api/config — auth, body parcial con merge por clave de nivel 1: solo
 // reemplaza las subkeys presentes de cada objeto (ad, whatsapp, socials) y los
 // strings de primer nivel (streamUrl, tagline, scheduleTitle).
 // 200 { ok: true, config } | 401 sin token | 400 { error, field }
-export async function PUT(request) {
+export const PUT = withHandler(async (request) => {
   const auth = requireAuth(request);
   if (!auth) {
     return Response.json({ error: 'no autorizado' }, { status: 401 });
@@ -48,16 +48,18 @@ export async function PUT(request) {
 
   await setConfig(config);
   return Response.json({ ok: true, config });
-}
+});
 
 // Otros métodos → 405, mismo patrón que api/horoscope.js
-export async function POST() {
+export const POST = withHandler(() => {
   return Response.json({ error: 'usa GET, PUT' }, { status: 405 });
-}
+});
 
-export async function DELETE() {
+export const DELETE = withHandler(() => {
   return Response.json({ error: 'usa GET, PUT' }, { status: 405 });
-}
+});
+
+export const OPTIONS = POST;
 
 /**
  * Valida `value` como URL absoluta http/https. Vacía/ausente/null →

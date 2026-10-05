@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { FieldGroup, Form, GreenButton, Input, Label, Section, Textarea, Title, ErrorMessage, LoadingMessage } from "../styled";
 import useConfig from "../hooks/useConfig";
@@ -91,6 +91,13 @@ export default function ConfigPanel() {
     const { config, loading, saving, error, saveConfig } = useConfig();
     const [form, setForm] = useState(null);
     const [savedFeedback, setSavedFeedback] = useState(false);
+    const feedbackTimer = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+        };
+    }, []);
 
     // Carga inicial: sync del form cuando la config llega de la API.
     if (loading && !config) return <LoadingMessage>Cargando configuración...</LoadingMessage>;
@@ -114,7 +121,8 @@ export default function ConfigPanel() {
             // PUT); se descarta el draft local para volver a sincronizarse.
             setForm(null);
             setSavedFeedback(true);
-            setTimeout(() => setSavedFeedback(false), 2500);
+            if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+            feedbackTimer.current = setTimeout(() => setSavedFeedback(false), 2500);
         }
     };
 

@@ -198,9 +198,10 @@ async function main() {
       }),
     );
     assert(adminRes.status === 200, `status ${adminRes.status}, esperado 200`);
+    const adminCache = adminRes.headers.get('cache-control');
     assert(
-      adminRes.headers.get('cache-control') === null,
-      'GET con Bearer no debe llevar Cache-Control (variante autenticada)',
+      adminCache === 'private, no-store',
+      `GET con Bearer debe llevar Cache-Control privado; recibido "${adminCache}"`,
     );
     const adminList = await parseJson(adminRes);
     assert(adminList.some((e) => e.id === draft.id), 'el borrador no aparece en GET con Bearer');

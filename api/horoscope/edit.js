@@ -1,4 +1,5 @@
 import { requireAuth } from '../../lib/auth.js';
+import { withHandler } from '../../lib/http.js';
 import { getHoroscope, setHoroscope } from '../../lib/store.js';
 
 /**
@@ -28,7 +29,7 @@ function normalizeImageUrl(imageUrl) {
 // `imageUrl`, cuando viene no vacía, debe ser URL http/https válida y se guarda
 // tal cual: la imagen vive externa, no se sirve desde esta API.
 // 200 { ok: true, title, content, image } | 401 sin token | 400 body inválido
-export async function POST(request) {
+export const POST = withHandler(async (request) => {
   const auth = requireAuth(request);
   if (!auth) {
     return Response.json({ error: 'no autorizado' }, { status: 401 });
@@ -42,6 +43,13 @@ export async function POST(request) {
   }
 
   const { title, content, imageUrl } = body || {};
+
+  if (title !== undefined && typeof title !== 'string') {
+    return Response.json({ error: 'title debe ser un string' }, { status: 400 });
+  }
+  if (content !== undefined && typeof content !== 'string') {
+    return Response.json({ error: 'content debe ser un string' }, { status: 400 });
+  }
 
   const urlResult = normalizeImageUrl(imageUrl);
   if (urlResult.provided && !urlResult.valid) {
@@ -60,4 +68,8 @@ export async function POST(request) {
   await setHoroscope(horoscope);
 
   return Response.json({ ok: true, ...horoscope });
-}
+});
+
+export const OPTIONS = withHandler(() => {
+  return Response.json({ error: 'usa POST' }, { status: 405 });
+});

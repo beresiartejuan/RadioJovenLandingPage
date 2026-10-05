@@ -1,4 +1,4 @@
-import { jsonWithCache } from '../lib/http.js';
+import { jsonWithCache, withHandler } from '../lib/http.js';
 import { getHoroscope } from '../lib/store.js';
 
 // GET /api/horoscope y POST /api/horoscope — públicas, mismo comportamiento.
@@ -9,19 +9,17 @@ async function handle() {
   return jsonWithCache(horoscope);
 }
 
-export async function GET() {
-  return handle();
-}
+export const GET = withHandler(handle);
 
-export async function POST() {
-  return handle();
-}
+export const POST = withHandler(handle);
 
 // Otros métodos → 405
-export async function PUT() {
+export const PUT = withHandler(() => {
   return Response.json({ error: 'usa GET, POST' }, { status: 405 });
-}
+});
 
-export async function DELETE() {
+export const DELETE = withHandler(() => {
   return Response.json({ error: 'usa GET, POST' }, { status: 405 });
-}
+});
+
+export const OPTIONS = PUT;

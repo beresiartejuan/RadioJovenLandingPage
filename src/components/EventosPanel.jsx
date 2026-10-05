@@ -65,12 +65,12 @@ export default function EventosPanel() {
             published: form.published,
         };
 
-        if (form.id) {
-            await editEvent(form.id, payload);
-        } else {
-            await addEvent(payload);
+        const ok = form.id
+            ? await editEvent(form.id, payload)
+            : await addEvent(payload);
+        if (ok) {
+            setForm({ id: null, title: "", description: "", published: false });
         }
-        setForm({ id: null, title: "", description: "", published: false });
     };
 
     const handleEdit = (event) => {

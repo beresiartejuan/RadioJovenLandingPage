@@ -1,5 +1,6 @@
 import { requireAuth } from '../../lib/auth.js';
-import { getSchedule, setSchedule } from '../../lib/store.js';
+import { withHandler } from '../../lib/http.js';
+import { deleteScheduleItem, getSchedule, updateScheduleItem } from '../../lib/store.js';
 
 function notAllowed() {
   return Response.json({ error: 'usa PUT, DELETE' }, { status: 405 });
@@ -27,7 +28,7 @@ function validatePatch({ days, time, title, host } = {}) {
 
 // PUT /api/schedule/:id — auth, body { days?, time?, title?, host? }
 // 200 item actualizado | 404 no existe | 401 sin token | 400 body inválido
-export async function PUT(request, { params }) {
+export const PUT = withHandler(async (request, { params }) => {
   const auth = requireAuth(request);
   if (!auth) {
     return Response.json({ error: 'no autorizado' }, { status: 401 });
@@ -45,47 +46,43 @@ export async function PUT(request, { params }) {
     return Response.json({ error }, { status: 400 });
   }
 
-  const schedule = await getSchedule();
-  const index = schedule.findIndex((item) => item.id === params.id);
-  if (index === -1) {
+  const exists = await getSchedule().then((list) => list.some((item) => item.id === params.id));
+  if (!exists) {
     return Response.json({ error: 'programa no encontrado' }, { status: 404 });
   }
 
-  // Actualización "merge": los campos ausentes conservan el valor previo.
-  const { days, time, title, host } = body || {};
-  if (days !== undefined) schedule[index].days = days;
-  if (time !== undefined) schedule[index].time = time;
-  if (title !== undefined) schedule[index].title = title;
-  if (host !== undefined) schedule[index].host = host;
+  const patch = {};
+  if (body.days !== undefined) patch.days = body.days;
+  if (body.time !== undefined) patch.time = body.time;
+  if (body.title !== undefined) patch.title = body.title;
+  if (body.host !== undefined) patch.host = body.host;
 
-  await setSchedule(schedule);
-  return Response.json(schedule[index]);
-}
+  const updated = await updateScheduleItem(params.id, patch);
+  if (!updated) {
+    return Response.json({ error: 'programa no encontrado' }, { status: 404 });
+  }
+
+  return Response.json(updated);
+});
 
 // DELETE /api/schedule/:id — auth
 // 200 { ok: true } | 404 no existe | 401 sin token
-export async function DELETE(request, { params }) {
+export const DELETE = withHandler(async (request, { params }) => {
   const auth = requireAuth(request);
   if (!auth) {
     return Response.json({ error: 'no autorizado' }, { status: 401 });
   }
 
-  const schedule = await getSchedule();
-  const index = schedule.findIndex((item) => item.id === params.id);
-  if (index === -1) {
+  const ok = await deleteScheduleItem(params.id);
+  if (!ok) {
     return Response.json({ error: 'programa no encontrado' }, { status: 404 });
   }
 
-  schedule.splice(index, 1);
-  await setSchedule(schedule);
-
   return Response.json({ ok: true });
-}
+});
 
-export async function GET() {
-  return notAllowed();
-}
+export const GET = withHandler(() => notAllowed());
 
-export async function POST() {
-  return notAllowed();
-}
+export const POST = withHandler(() => notAllowed());
+
+export const OPTIONS = GET;

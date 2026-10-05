@@ -1,6 +1,6 @@
 import { requireAuth } from '../lib/auth.js';
-import { jsonWithCache } from '../lib/http.js';
-import { getSchedule, setSchedule } from '../lib/store.js';
+import { jsonWithCache, withHandler } from '../lib/http.js';
+import { createScheduleItem, getSchedule } from '../lib/store.js';
 
 /**
  * Valida los 4 campos del item: strings no vacíos.
@@ -15,13 +15,13 @@ function validateItem({ days, time, title, host }) {
 }
 
 // GET /api/schedule — público con cache: 200 array (vacío si no hay datos).
-export async function GET() {
+export const GET = withHandler(async () => {
   return jsonWithCache(await getSchedule());
-}
+});
 
 // POST /api/schedule — auth, body { days, time, title, host }
 // 201 { id, days, time, title, host } | 401 sin token | 400 body inválido
-export async function POST(request) {
+export const POST = withHandler(async (request) => {
   const auth = requireAuth(request);
   if (!auth) {
     return Response.json({ error: 'no autorizado' }, { status: 401 });
@@ -39,26 +39,25 @@ export async function POST(request) {
     return Response.json({ error }, { status: 400 });
   }
 
-  const item = {
+  const item = await createScheduleItem({
     id: crypto.randomUUID(),
     days: body.days,
     time: body.time,
     title: body.title,
     host: body.host,
-  };
-
-  const schedule = await getSchedule();
-  schedule.push(item);
-  await setSchedule(schedule);
+    order: 0,
+  });
 
   return Response.json(item, { status: 201 });
-}
+});
 
 // Otros métodos → 405
-export async function PUT() {
+export const PUT = withHandler(() => {
   return Response.json({ error: 'usa GET, POST' }, { status: 405 });
-}
+});
 
-export async function DELETE() {
+export const DELETE = withHandler(() => {
   return Response.json({ error: 'usa GET, POST' }, { status: 405 });
-}
+});
+
+export const OPTIONS = PUT;
